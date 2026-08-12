@@ -23,6 +23,7 @@ fn test_agents_auto_scroll_keeps_selected_visible() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -34,14 +35,15 @@ fn test_agents_auto_scroll_keeps_selected_visible() {
     state.focus_state.focus = Focus::Panes;
     state.rebuild_row_targets();
 
-    // Render with a small height. With the 2-row header, the first pane
-    // still stays visible without needing to scroll.
-    let _ = render_to_string(&mut state, 28, 26);
+    // Render with a small height. Above the rows sit the 2-row filter header
+    // plus the session header and window row of the tree, so the viewport has
+    // to be tall enough to still show the first pane without scrolling.
+    let _ = render_to_string(&mut state, 28, 27);
     assert_eq!(state.scrolls.panes.offset, 0, "initially at top");
 
     // Select last agent and re-render
     state.global.selected_pane_row = 9;
-    let _ = render_to_string(&mut state, 28, 26);
+    let _ = render_to_string(&mut state, 28, 27);
     assert!(
         state.scrolls.panes.offset > 0,
         "should scroll down to show selected agent"
@@ -55,6 +57,7 @@ fn test_panes_scroll_offset_tracks_total_and_visible() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -107,6 +110,7 @@ fn test_running_icon_blink_off() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -118,11 +122,11 @@ fn test_running_icon_blink_off() {
     state.focus_state.sidebar_focused = false;
     state.spinner_frame = 0;
 
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -136,6 +140,7 @@ fn test_running_spinner_frame_advances() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -147,11 +152,11 @@ fn test_running_spinner_frame_advances() {
     state.focus_state.sidebar_focused = false;
     state.spinner_frame = 3;
 
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -165,6 +170,7 @@ fn test_waiting_icon() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -175,11 +181,11 @@ fn test_waiting_icon() {
     state.rebuild_row_targets();
     state.focus_state.sidebar_focused = false;
 
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●0  ◎0  ◐1  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ◐ claude
+    main: 1 window
+    └ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -193,6 +199,7 @@ fn test_error_icon() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -203,11 +210,11 @@ fn test_error_icon() {
     state.rebuild_row_targets();
     state.focus_state.sidebar_focused = false;
 
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●0  ◎0  ◐0  ○0  ✕1
     ⓘ                        — ▾
-    project
-    ┃ ✕ claude
+    main: 1 window
+    └ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -237,6 +244,7 @@ fn test_agents_auto_scroll_shows_last_selected_pane() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -275,6 +283,7 @@ fn test_agents_auto_scroll_up_shows_group_header() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -295,12 +304,12 @@ fn test_agents_auto_scroll_up_shows_group_header() {
     state.global.selected_pane_row = 0;
     // The snapshot locks in that the `project` repo header is visible after
     // scrolling back up to the first agent.
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 26), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 26), @"
      ≡8  ●0  ◎0  ◐0  ○8  ✕0
     ⓘ                        — ▾
-    project
-      ○ claude
-        Waiting for prompt…
+    └ project
+        ○ claude
+          Waiting for prompt…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -316,6 +325,7 @@ fn repo_popup_renders_repo_names_when_open() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "frontend".into(),
             window_active: true,
             auto_rename: false,
@@ -334,16 +344,16 @@ fn repo_popup_renders_repo_names_when_open() {
 
     // The snapshot locks in that the popup lists the `All` entry plus both
     // repo names when opened.
-    insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @"
      ≡2  ●0  ◎0  ◐0  ○2  ✕0
     ⓘ                                    — ▾
-    frontend                    ┌──────────┐
-    ┃ ○ claude                  │ All      │
-        Waiting for prompt…     │ frontend │
-                                │ backend  │
-    backend                     └──────────┘
-    ┃ ○ claude
-        Waiting for prompt…
+    main: 2 windows              ┌─────────┐
+    ├ frontend                   │ All     │
+    │ ┃ ○ claude                 │ project │
+    │     Waiting for prompt…    └─────────┘
+    └ backend
+      ┃ ○ claude
+          Waiting for prompt…
     ╭ Activity │ Git ──────────────────────╮
     │            No activity yet           │
     ╰──────────────────────────────────────╯
@@ -363,6 +373,7 @@ fn repo_popup_highlights_selected_entry_with_background() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "frontend".into(),
             window_active: true,
             auto_rename: false,
@@ -382,16 +393,16 @@ fn repo_popup_highlights_selected_entry_with_background() {
 
     // Styled snapshot locks in that the `backend` row carries the selection
     // background (bg:239) on each cell of the entry.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 30), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]2[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                                    —[fg:255] ▾[fg:255]
-    f[fg:153]r[fg:153]o[fg:153]n[fg:153]t[fg:153]e[fg:153]n[fg:153]d[fg:153]                    ┌[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┐[fg:153]
-    ┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]                  │[fg:153] [fg:255]A[fg:255]l[fg:255]l[fg:255] [fg:255] [fg:255] [fg:255] [fg:255] [fg:255] [fg:255]│[fg:153]
-       [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]     │[fg:153] [fg:252]f[fg:252]r[fg:252]o[fg:252]n[fg:252]t[fg:252]e[fg:252]n[fg:252]d[fg:252] [fg:252]│[fg:153]
-                                │[fg:153] [fg:255,bg:239]b[fg:255,bg:239]a[fg:255,bg:239]c[fg:255,bg:239]k[fg:255,bg:239]e[fg:255,bg:239]n[fg:255,bg:239]d[fg:255,bg:239] [fg:255,bg:239] [fg:255,bg:239]│[fg:153]
-    b[fg:153]a[fg:153]c[fg:153]k[fg:153]e[fg:153]n[fg:153]d[fg:153]                     └[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┘[fg:153]
-    ┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-       [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]              ┌[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┐[fg:153]
+    ├[fg:244] f[fg:153]r[fg:153]o[fg:153]n[fg:153]t[fg:153]e[fg:153]n[fg:153]d[fg:153]                   │[fg:153] [fg:255]A[fg:255]l[fg:255]l[fg:255] [fg:255] [fg:255] [fg:255] [fg:255] [fg:255]│[fg:153]
+    │[fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]                 │[fg:153] [fg:252]p[fg:252]r[fg:252]o[fg:252]j[fg:252]e[fg:252]c[fg:252]t[fg:252] [fg:252]│[fg:153]
+    │[fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]    └[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┘[fg:153]
+    └[fg:244] b[fg:153]a[fg:153]c[fg:153]k[fg:153]e[fg:153]n[fg:153]d[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]

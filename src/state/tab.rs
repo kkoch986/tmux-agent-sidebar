@@ -194,6 +194,7 @@ mod tests {
     fn agent_group(pane_id: &str) -> RepoGroup {
         RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(pane_id), PaneGitInfo::default())],
         }

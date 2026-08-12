@@ -99,6 +99,10 @@ pub enum AgentType {
 #[derive(Debug, Clone)]
 pub struct WindowInfo {
     pub window_id: String,
+    /// tmux `window_index` — the number shown in `choose-tree` and the
+    /// status line. Kept as a string because tmux `base-index` and manual
+    /// `move-window` renumbering make it a label, not an ordinal.
+    pub window_index: String,
     pub window_name: String,
     pub window_active: bool,
     pub auto_rename: bool,

@@ -96,23 +96,43 @@ impl RepoFilter {
         }
     }
 
-    pub fn matches_group(&self, group_name: &str) -> bool {
+    /// Match a single pane's repo. Groups are tmux windows now, and one
+    /// window can hold panes from different repos, so the repo filter has to
+    /// be applied per pane rather than per group.
+    pub fn matches_pane(
+        &self,
+        pane: &crate::tmux::PaneInfo,
+        git: &crate::group::PaneGitInfo,
+    ) -> bool {
         match self {
             Self::All => true,
-            Self::Repo(name) => name == group_name,
+            Self::Repo(name) => {
+                crate::group::repo_display_name(pane, git).as_deref() == Some(name.as_str())
+            }
+        }
+    }
+
+    /// Whether any pane in the group survives the filter.
+    pub fn matches_group(&self, group: &crate::group::RepoGroup) -> bool {
+        match self {
+            Self::All => true,
+            Self::Repo(_) => group
+                .panes
+                .iter()
+                .any(|(pane, git)| self.matches_pane(pane, git)),
         }
     }
 }
 
 impl AppState {
-    /// Count agents per status across all repo groups.
+    /// Count agents per status across all window groups.
     pub fn status_counts(&self) -> (usize, usize, usize, usize, usize, usize) {
         let (mut running, mut background, mut waiting, mut idle, mut error) = (0, 0, 0, 0, 0);
         for group in &self.repo_groups {
-            if !self.global.repo_filter.matches_group(&group.name) {
-                continue;
-            }
-            for (pane, _) in &group.panes {
+            for (pane, git) in &group.panes {
+                if !self.global.repo_filter.matches_pane(pane, git) {
+                    continue;
+                }
                 match pane.status {
                     crate::tmux::PaneStatus::Running => running += 1,
                     crate::tmux::PaneStatus::Background => background += 1,
@@ -127,12 +147,21 @@ impl AppState {
         (all, running, background, waiting, idle, error)
     }
 
-    /// Return list of repo names for the popup: ["All", repo1, repo2, ...]
+    /// Return list of repo names for the popup: ["All", repo1, repo2, ...].
+    /// Sorted case-insensitively so the popup order stays stable even though
+    /// the tree itself is ordered by session and window.
     pub fn repo_names(&self) -> Vec<String> {
-        let mut names = vec!["All".to_string()];
+        let mut repos: Vec<String> = Vec::new();
         for group in &self.repo_groups {
-            names.push(group.name.clone());
+            for name in group.repo_names() {
+                if !repos.contains(&name) {
+                    repos.push(name);
+                }
+            }
         }
+        repos.sort_by_key(|n| n.to_lowercase());
+        let mut names = vec!["All".to_string()];
+        names.extend(repos);
         names
     }
 }
@@ -245,10 +274,26 @@ mod tests {
     }
 
     #[test]
-    fn repo_filter_matches_group() {
-        assert!(RepoFilter::All.matches_group("anything"));
-        assert!(RepoFilter::Repo("app".into()).matches_group("app"));
-        assert!(!RepoFilter::Repo("app".into()).matches_group("other"));
+    fn repo_filter_matches_pane_by_repo_root_basename() {
+        let pane = test_pane("%1", PaneStatus::Running);
+        let git = git_in("/src/app");
+        assert!(RepoFilter::All.matches_pane(&pane, &git));
+        assert!(RepoFilter::Repo("app".into()).matches_pane(&pane, &git));
+        assert!(!RepoFilter::Repo("other".into()).matches_pane(&pane, &git));
+    }
+
+    #[test]
+    fn repo_filter_matches_group_when_any_pane_matches() {
+        // A window holding two repos stays visible under either repo's filter,
+        // which is why the filter is applied per pane rather than per group.
+        let group = repo_group(vec![
+            (test_pane("%1", PaneStatus::Running), git_in("/src/app")),
+            (test_pane("%2", PaneStatus::Running), git_in("/src/lib")),
+        ]);
+        assert!(RepoFilter::All.matches_group(&group));
+        assert!(RepoFilter::Repo("app".into()).matches_group(&group));
+        assert!(RepoFilter::Repo("lib".into()).matches_group(&group));
+        assert!(!RepoFilter::Repo("other".into()).matches_group(&group));
     }
 
     // ─── AppState status_counts / repo_names ─────────────────────────
@@ -280,6 +325,20 @@ mod tests {
         }
     }
 
+    fn git_in(repo_root: &str) -> PaneGitInfo {
+        PaneGitInfo {
+            repo_root: Some(repo_root.into()),
+            ..Default::default()
+        }
+    }
+
+    fn repo_group(panes: Vec<(PaneInfo, PaneGitInfo)>) -> RepoGroup {
+        RepoGroup {
+            panes,
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn status_counts_on_empty_state_is_all_zeroes() {
         let state = AppState::new("%99".into());
@@ -287,26 +346,18 @@ mod tests {
     }
 
     #[test]
-    fn status_counts_sums_across_repo_groups_and_filters() {
+    fn status_counts_sums_across_window_groups_and_filters() {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![
-            RepoGroup {
-                name: "app".into(),
-                has_focus: true,
-                panes: vec![
-                    (test_pane("%1", PaneStatus::Running), PaneGitInfo::default()),
-                    (test_pane("%2", PaneStatus::Idle), PaneGitInfo::default()),
-                    (
-                        test_pane("%4", PaneStatus::Background),
-                        PaneGitInfo::default(),
-                    ),
-                ],
-            },
-            RepoGroup {
-                name: "lib".into(),
-                has_focus: false,
-                panes: vec![(test_pane("%3", PaneStatus::Waiting), PaneGitInfo::default())],
-            },
+            repo_group(vec![
+                (test_pane("%1", PaneStatus::Running), git_in("/src/app")),
+                (test_pane("%2", PaneStatus::Idle), git_in("/src/app")),
+                (test_pane("%4", PaneStatus::Background), git_in("/src/app")),
+            ]),
+            repo_group(vec![(
+                test_pane("%3", PaneStatus::Waiting),
+                git_in("/src/lib"),
+            )]),
         ];
 
         // All repos: 4 total
@@ -324,17 +375,36 @@ mod tests {
         let mut state = AppState::new("%99".into());
         assert_eq!(state.repo_names(), vec!["All"]);
         state.repo_groups = vec![
-            RepoGroup {
-                name: "alpha".into(),
-                has_focus: true,
-                panes: vec![],
-            },
-            RepoGroup {
-                name: "beta".into(),
-                has_focus: false,
-                panes: vec![],
-            },
+            repo_group(vec![(
+                test_pane("%1", PaneStatus::Running),
+                git_in("/src/beta"),
+            )]),
+            repo_group(vec![(
+                test_pane("%2", PaneStatus::Running),
+                git_in("/src/alpha"),
+            )]),
         ];
         assert_eq!(state.repo_names(), vec!["All", "alpha", "beta"]);
+    }
+
+    #[test]
+    fn repo_names_dedupes_repos_spread_over_several_windows() {
+        // The same repo open in three windows must appear once in the popup.
+        let mut state = AppState::new("%99".into());
+        state.repo_groups = vec![
+            repo_group(vec![(
+                test_pane("%1", PaneStatus::Running),
+                git_in("/src/app"),
+            )]),
+            repo_group(vec![(
+                test_pane("%2", PaneStatus::Running),
+                git_in("/src/app"),
+            )]),
+            repo_group(vec![(
+                test_pane("%3", PaneStatus::Running),
+                git_in("/src/lib"),
+            )]),
+        ];
+        assert_eq!(state.repo_names(), vec!["All", "app", "lib"]);
     }
 }

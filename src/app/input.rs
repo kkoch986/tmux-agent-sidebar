@@ -224,8 +224,40 @@ fn repo_popup_nav_up(state: &mut AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::group::RepoGroup;
+    use crate::group::{PaneGitInfo, RepoGroup};
     use crate::state::RowTarget;
+    use crate::tmux::{AgentType, PaneInfo, PaneStatus, PermissionMode, WorktreeMetadata};
+
+    /// A pane sitting in `repo_root`. The repo popup lists repos read off the
+    /// panes now, so a group with no panes contributes no entries.
+    fn pane_in(id: &str, repo_root: &str) -> (PaneInfo, PaneGitInfo) {
+        let pane = PaneInfo {
+            pane_id: id.into(),
+            pane_active: false,
+            status: PaneStatus::Running,
+            attention: false,
+            agent: AgentType::Claude,
+            path: repo_root.into(),
+            current_command: String::new(),
+            prompt: String::new(),
+            prompt_is_response: false,
+            started_at: None,
+            wait_reason: String::new(),
+            permission_mode: PermissionMode::Default,
+            subagents: vec![],
+            pane_pid: None,
+            worktree: WorktreeMetadata::default(),
+            session_id: None,
+            session_name: String::new(),
+            sidebar_spawned: false,
+            bg_shell_cmd: None,
+        };
+        let git = PaneGitInfo {
+            repo_root: Some(repo_root.into()),
+            ..Default::default()
+        };
+        (pane, git)
+    }
 
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
@@ -262,14 +294,16 @@ mod tests {
         // somewhere to move.
         state.repo_groups = vec![
             RepoGroup {
-                name: "repo-a".into(),
+                name: "0: repo-a".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![],
+                panes: vec![pane_in("%1", "/src/repo-a")],
             },
             RepoGroup {
-                name: "repo-b".into(),
+                name: "1: repo-b".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![],
+                panes: vec![pane_in("%2", "/src/repo-b")],
             },
         ];
         state.toggle_repo_popup();

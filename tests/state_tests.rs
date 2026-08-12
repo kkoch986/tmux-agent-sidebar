@@ -82,6 +82,7 @@ fn test_line_to_row_single_agent() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -91,11 +92,12 @@ fn test_line_to_row_single_agent() {
     state.repo_groups = vec![make_repo_group("project", vec![pane])];
     state.rebuild_row_targets();
     let _ = render_to_styled_string(&mut state, 28, 10);
-    // repo header, agent status, idle hint
-    assert_eq!(state.layout.line_to_row.len(), 3);
-    assert_eq!(state.layout.line_to_row[0], None); // repo header
-    assert_eq!(state.layout.line_to_row[1], Some(0)); // agent status
-    assert_eq!(state.layout.line_to_row[2], Some(0)); // idle hint
+    // session header, window row, agent status, idle hint
+    assert_eq!(state.layout.line_to_row.len(), 4);
+    assert_eq!(state.layout.line_to_row[0], None); // session header
+    assert_eq!(state.layout.line_to_row[1], None); // window row
+    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent status
+    assert_eq!(state.layout.line_to_row[3], Some(0)); // idle hint
 }
 
 #[test]
@@ -147,6 +149,7 @@ fn test_line_to_row_two_agents() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -156,12 +159,13 @@ fn test_line_to_row_two_agents() {
     state.repo_groups = vec![make_repo_group("project", vec![pane1, pane2])];
     state.rebuild_row_targets();
     let _ = render_to_styled_string(&mut state, 28, 10);
-    // repo header, agent1, agent2 status+hint
-    assert_eq!(state.layout.line_to_row.len(), 4);
-    assert_eq!(state.layout.line_to_row[0], None); // repo header
-    assert_eq!(state.layout.line_to_row[1], Some(0)); // agent 1
-    assert_eq!(state.layout.line_to_row[2], Some(1)); // agent 2 status line
-    assert_eq!(state.layout.line_to_row[3], Some(1)); // agent 2 idle hint
+    // session header, window row, agent1, agent2 status+hint
+    assert_eq!(state.layout.line_to_row.len(), 5);
+    assert_eq!(state.layout.line_to_row[0], None); // session header
+    assert_eq!(state.layout.line_to_row[1], None); // window row
+    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent 1
+    assert_eq!(state.layout.line_to_row[3], Some(1)); // agent 2 status line
+    assert_eq!(state.layout.line_to_row[4], Some(1)); // agent 2 idle hint
 }
 
 #[test]
@@ -173,6 +177,7 @@ fn test_line_to_row_with_prompt() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -182,11 +187,12 @@ fn test_line_to_row_with_prompt() {
     state.repo_groups = vec![make_repo_group("project", vec![pane])];
     state.rebuild_row_targets();
     let _ = render_to_styled_string(&mut state, 28, 10);
-    // repo header, agent status, prompt
-    assert_eq!(state.layout.line_to_row.len(), 3);
-    assert_eq!(state.layout.line_to_row[0], None); // repo header
-    assert_eq!(state.layout.line_to_row[1], Some(0)); // agent status line
-    assert_eq!(state.layout.line_to_row[2], Some(0)); // prompt line
+    // session header, window row, agent status, prompt
+    assert_eq!(state.layout.line_to_row.len(), 4);
+    assert_eq!(state.layout.line_to_row[0], None); // session header
+    assert_eq!(state.layout.line_to_row[1], None); // window row
+    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent status line
+    assert_eq!(state.layout.line_to_row[3], Some(0)); // prompt line
 }
 
 #[test]
@@ -196,6 +202,7 @@ fn test_line_to_row_with_version_banner() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -210,10 +217,11 @@ fn test_line_to_row_with_version_banner() {
     state.rebuild_row_targets();
     let _ = render_to_string(&mut state, 28, 10);
     // version banner should still stay out of the scrollable list
-    assert_eq!(state.layout.line_to_row.len(), 3);
-    assert_eq!(state.layout.line_to_row[0], None); // repo header
-    assert_eq!(state.layout.line_to_row[1], Some(0)); // agent status line
-    assert_eq!(state.layout.line_to_row[2], Some(0)); // idle hint
+    assert_eq!(state.layout.line_to_row.len(), 4);
+    assert_eq!(state.layout.line_to_row[0], None); // session header
+    assert_eq!(state.layout.line_to_row[1], None); // window row
+    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent status line
+    assert_eq!(state.layout.line_to_row[3], Some(0)); // idle hint
 }
 
 #[test]
@@ -223,6 +231,7 @@ fn test_secondary_header_click_on_i_opens_notices_popup_even_without_missing_hoo
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -258,6 +267,7 @@ fn test_rebuild_row_targets_clamps_selection() {
     let mut state = make_state(vec![]);
     state.repo_groups = vec![RepoGroup {
         name: "project".into(),
+        session_name: "main".into(),
         has_focus: true,
         panes: vec![
             (pane.clone(), PaneGitInfo::default()),

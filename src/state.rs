@@ -225,6 +225,15 @@ mod tests {
         }
     }
 
+    /// Git info placing a pane in a repo. The repo filter reads the repo root
+    /// off each pane now, so tests have to set it rather than name the group.
+    fn git_in(repo_root: &str) -> PaneGitInfo {
+        PaneGitInfo {
+            repo_root: Some(repo_root.into()),
+            ..Default::default()
+        }
+    }
+
     fn write_activity_log(pane_id: &str, contents: &str) -> String {
         let path = crate::activity::log_file_path(pane_id);
         fs::write(&path, contents).unwrap();
@@ -237,6 +246,7 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "dotfiles".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![
                     (test_pane("%1"), PaneGitInfo::default()),
@@ -245,6 +255,7 @@ mod tests {
             },
             RepoGroup {
                 name: "app".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%3"), PaneGitInfo::default())],
             },
@@ -263,11 +274,13 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "dotfiles".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![(test_pane("%1"), PaneGitInfo::default())],
             },
             RepoGroup {
                 name: "app".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%5"), PaneGitInfo::default())],
             },
@@ -291,6 +304,7 @@ mod tests {
 
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane("%100"), PaneGitInfo::default())],
         }];
@@ -322,6 +336,7 @@ mod tests {
 
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane("%101"), PaneGitInfo::default())],
         }];
@@ -449,6 +464,7 @@ mod tests {
         let pane_id = "%202".to_string();
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -472,6 +488,7 @@ mod tests {
         let pane_id = "%203".to_string();
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -497,6 +514,7 @@ mod tests {
         let pane_id = "%204".to_string();
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -518,6 +536,7 @@ mod tests {
         let pane_id = "%205".to_string();
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -542,6 +561,7 @@ mod tests {
         let pane_id = "%206".to_string();
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -598,6 +618,7 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane("%1"), PaneGitInfo::default())],
         }];
@@ -621,6 +642,7 @@ mod tests {
         pane.status = PaneStatus::Idle;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -651,6 +673,7 @@ mod tests {
         // test_pane defaults to PaneStatus::Running
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(test_pane(&pane_id), PaneGitInfo::default())],
         }];
@@ -678,6 +701,7 @@ mod tests {
         pane.status = PaneStatus::Error;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -709,6 +733,7 @@ mod tests {
         pane.status = PaneStatus::Idle;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -728,6 +753,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -749,6 +775,7 @@ mod tests {
         pane.status = PaneStatus::Idle;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -785,6 +812,7 @@ mod tests {
         pane.status = PaneStatus::Waiting;
         state.repo_groups = vec![RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -931,6 +959,7 @@ mod tests {
             session_name: "main".into(),
             windows: vec![crate::tmux::WindowInfo {
                 window_id: "@0".into(),
+                window_index: "0".into(),
                 window_name: "project".into(),
                 window_active: true,
                 auto_rename: false,
@@ -1106,6 +1135,7 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (test_pane("%1"), PaneGitInfo::default()),
@@ -1149,6 +1179,7 @@ mod tests {
 
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (p1, PaneGitInfo::default()),
@@ -1193,6 +1224,7 @@ mod tests {
 
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (p1, PaneGitInfo::default()),
@@ -1268,11 +1300,13 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![(test_pane("%1"), PaneGitInfo::default())],
             },
             RepoGroup {
                 name: "beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%2"), PaneGitInfo::default())],
             },
@@ -1295,11 +1329,13 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![(test_pane("%1"), PaneGitInfo::default())],
             },
             RepoGroup {
                 name: "beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%2"), PaneGitInfo::default())],
             },
@@ -1332,11 +1368,13 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![(test_pane("%1"), PaneGitInfo::default())],
             },
             RepoGroup {
                 name: "beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%2"), PaneGitInfo::default())],
             },
@@ -1412,6 +1450,7 @@ mod tests {
 
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (p1, PaneGitInfo::default()),
@@ -1518,6 +1557,7 @@ mod tests {
             .collect();
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes,
         }];
@@ -1553,6 +1593,7 @@ mod tests {
         p3.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (p1, PaneGitInfo::default()),
@@ -1590,11 +1631,13 @@ mod tests {
         state.repo_groups = vec![
             RepoGroup {
                 name: "dotfiles".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![(test_pane("%1"), PaneGitInfo::default())],
             },
             RepoGroup {
                 name: "app".into(),
+                session_name: "main".into(),
                 has_focus: false,
                 panes: vec![(test_pane("%2"), PaneGitInfo::default())],
             },
@@ -1610,14 +1653,16 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![
             RepoGroup {
-                name: "dotfiles".into(),
+                name: "0: dotfiles".into(),
+                session_name: "main".into(),
                 has_focus: true,
-                panes: vec![(test_pane("%1"), PaneGitInfo::default())],
+                panes: vec![(test_pane("%1"), git_in("/src/dotfiles"))],
             },
             RepoGroup {
-                name: "app".into(),
+                name: "1: app".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![(test_pane("%2"), PaneGitInfo::default())],
+                panes: vec![(test_pane("%2"), git_in("/src/app"))],
             },
         ];
         state.global.repo_filter = RepoFilter::Repo("app".into());
@@ -1634,17 +1679,19 @@ mod tests {
         idle_pane.status = PaneStatus::Idle;
         state.repo_groups = vec![
             RepoGroup {
-                name: "app".into(),
+                name: "0: app".into(),
+                session_name: "main".into(),
                 has_focus: true,
                 panes: vec![
-                    (test_pane("%1"), PaneGitInfo::default()), // Running
-                    (idle_pane, PaneGitInfo::default()),       // Idle
+                    (test_pane("%1"), git_in("/src/app")), // Running
+                    (idle_pane, git_in("/src/app")),       // Idle
                 ],
             },
             RepoGroup {
-                name: "lib".into(),
+                name: "1: lib".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![(test_pane("%2"), PaneGitInfo::default())], // Running
+                panes: vec![(test_pane("%2"), git_in("/src/lib"))], // Running
             },
         ];
         state.global.repo_filter = RepoFilter::Repo("app".into());
@@ -1660,9 +1707,10 @@ mod tests {
     fn repo_filter_stale_name_resets() {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![RepoGroup {
-            name: "app".into(),
+            name: "0: app".into(),
+            session_name: "main".into(),
             has_focus: true,
-            panes: vec![(test_pane("%1"), PaneGitInfo::default())],
+            panes: vec![(test_pane("%1"), git_in("/src/app"))],
         }];
         state.global.repo_filter = RepoFilter::Repo("deleted-repo".into());
         state.rebuild_row_targets();
@@ -1672,18 +1720,20 @@ mod tests {
     }
 
     #[test]
-    fn repo_names_returns_all_plus_groups() {
+    fn repo_names_returns_all_plus_repos_of_every_window() {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![
             RepoGroup {
-                name: "alpha".into(),
+                name: "0: alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
-                panes: vec![],
+                panes: vec![(test_pane("%1"), git_in("/src/alpha"))],
             },
             RepoGroup {
-                name: "beta".into(),
+                name: "1: beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![],
+                panes: vec![(test_pane("%2"), git_in("/src/beta"))],
             },
         ];
         assert_eq!(state.repo_names(), vec!["All", "alpha", "beta"]);
@@ -1696,14 +1746,16 @@ mod tests {
         idle_pane.status = PaneStatus::Idle;
         state.repo_groups = vec![
             RepoGroup {
-                name: "app".into(),
+                name: "0: app".into(),
+                session_name: "main".into(),
                 has_focus: true,
-                panes: vec![(test_pane("%1"), PaneGitInfo::default())], // Running
+                panes: vec![(test_pane("%1"), git_in("/src/app"))], // Running
             },
             RepoGroup {
-                name: "lib".into(),
+                name: "1: lib".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![(idle_pane, PaneGitInfo::default())], // Idle
+                panes: vec![(idle_pane, git_in("/src/lib"))], // Idle
             },
         ];
 
