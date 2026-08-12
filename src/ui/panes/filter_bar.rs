@@ -273,6 +273,7 @@ mod tests {
         };
         let mut state = make_state_with_groups(vec![crate::group::RepoGroup {
             name: "project".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![
                 (pane1, PaneGitInfo::default()),
@@ -363,6 +364,7 @@ mod tests {
     fn render_secondary_header_shows_repo_name_when_filtered() {
         let mut state = make_state_with_groups(vec![crate::group::RepoGroup {
             name: "my-app".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![],
         }]);
@@ -392,6 +394,7 @@ mod tests {
     fn render_secondary_header_truncates_long_repo_name() {
         let mut state = make_state_with_groups(vec![crate::group::RepoGroup {
             name: "very-long-repository-name-that-exceeds-width".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![],
         }]);

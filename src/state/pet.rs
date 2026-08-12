@@ -269,6 +269,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -287,6 +288,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -308,6 +310,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -327,6 +330,7 @@ mod tests {
         pane.status = PaneStatus::Idle;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -350,6 +354,7 @@ mod tests {
         pane.status = PaneStatus::Idle;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -369,6 +374,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];
@@ -390,6 +396,7 @@ mod tests {
         pane.status = PaneStatus::Running;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane, PaneGitInfo::default())],
         }];

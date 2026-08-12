@@ -72,7 +72,7 @@ impl AppState {
                     .map(|(p, _)| (p.pane_id.clone(), p.session_id.clone()))
             })
             .collect();
-        self.repo_groups = crate::group::group_panes_by_repo(&sessions);
+        self.repo_groups = crate::group::group_panes_by_window(&sessions);
         if !self.sessions.dirty
             && self
                 .repo_groups
@@ -486,6 +486,7 @@ mod tests {
             session_name: "main".into(),
             windows: vec![WindowInfo {
                 window_id: "@0".into(),
+                window_index: "0".into(),
                 window_name: "test".into(),
                 window_active: true,
                 auto_rename: false,
@@ -838,6 +839,7 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![crate::group::RepoGroup {
             name: "test".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: panes
                 .into_iter()

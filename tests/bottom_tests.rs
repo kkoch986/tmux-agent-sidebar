@@ -79,6 +79,7 @@ fn snapshot_git_status_tab_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -113,10 +114,10 @@ fn snapshot_git_status_tab_ui() {
     state.git.diff_stat = Some((42, 15));
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │feature/sidebar       ↑2↓1│
     │+42/-15            3 files│
@@ -137,6 +138,7 @@ fn snapshot_git_clean_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -152,10 +154,10 @@ fn snapshot_git_clean_ui() {
     // No git changes
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
     ╰──────────────────────────╯
@@ -169,6 +171,7 @@ fn snapshot_activity_tab_active_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -188,10 +191,10 @@ fn snapshot_activity_tab_active_ui() {
     }];
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │10:32                 Edit│
     │  src/main.rs             │
@@ -206,6 +209,7 @@ fn activity_tab_leaves_one_blank_row_above_entries() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -227,10 +231,10 @@ fn activity_tab_leaves_one_blank_row_above_entries() {
     // The inline snapshot locks in the blank-row spacer: after the `╭ Activity │ Git ╮`
     // title row, the first row must be empty and the timestamp/tool row must appear
     // one row further down.
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 24), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 24), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │10:32                 Edit│
     │  src/main.rs             │
@@ -249,6 +253,7 @@ fn snapshot_activity_long_tool_keeps_one_space_gap() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -284,6 +289,7 @@ fn snapshot_tab_bar_renders_both_labels() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -318,6 +324,7 @@ fn snapshot_git_full_info_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -353,10 +360,10 @@ fn snapshot_git_full_info_ui() {
 
     // Use plain render since elapsed time varies
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
     │+120/-30           3 files│
@@ -377,6 +384,7 @@ fn snapshot_git_diff_summary_tight_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -411,6 +419,7 @@ fn snapshot_git_staged_file_diff_right_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -453,6 +462,7 @@ fn snapshot_git_unstaged_long_name_diff_right_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -495,6 +505,7 @@ fn snapshot_git_long_filename_truncated_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -527,10 +538,10 @@ fn snapshot_git_long_filename_truncated_ui() {
 
     // Verify the long filename is truncated (contains ellipsis)
     let plain = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(plain, @r"
+    insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
     │                   2 files│
@@ -549,6 +560,7 @@ fn snapshot_git_more_than_5_files() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -616,11 +628,12 @@ fn snapshot_git_more_than_5_files() {
 
     // Verify file list rendering (scroll to see overflow)
     let plain = render_to_string(&mut state, 28, 40);
-    insta::assert_snapshot!(plain, @r"
+    insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
+      ┃ ● claude
     ╭ Activity │ Git ──────────╮
     │main                      │
     │                   7 files│
@@ -643,11 +656,12 @@ fn snapshot_git_more_than_5_files() {
     // when the file list shrinks between frames.
     state.scrolls.git.offset = 5;
     let scrolled = render_to_string(&mut state, 28, 40);
-    insta::assert_snapshot!(scrolled, @r"
+    insta::assert_snapshot!(scrolled, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
+      ┃ ● claude
     ╭ Activity │ Git ──────────╮
     │main                      │
     │                   7 files│
@@ -671,6 +685,7 @@ fn snapshot_git_branch_only_no_changes() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -704,6 +719,7 @@ fn snapshot_git_pr_number_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -766,6 +782,7 @@ fn snapshot_git_pr_with_diff_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -804,6 +821,7 @@ fn snapshot_subagents_tree_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -814,14 +832,14 @@ fn snapshot_subagents_tree_ui() {
     state.rebuild_row_targets();
 
     let output = render_to_string(&mut state, 40, 28);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                                    — ▾
-    project
-    ┃ ● claude
-        ├ Explore #1
-        ├ Plan #2
-        └ Explore #2
+    └ project
+      ┃ ● claude
+          ├ Explore #1
+          ├ Plan #2
+          └ Explore #2
     ╭ Activity │ Git ──────────────────────╮
     │            No activity yet           │
     ╰──────────────────────────────────────╯
@@ -840,6 +858,7 @@ fn snapshot_subagent_long_name_truncated_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -851,13 +870,13 @@ fn snapshot_subagent_long_name_truncated_ui() {
 
     // Narrow width (28) to force truncation of long subagent names
     let output = render_to_string(&mut state, 28, 27);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
-        ├ superpowers:code-revi…
-        └ claude-code-guide #2
+    └ project
+      ┃ ● claude
+          ├ superpowers:code-re…
+          └ claude-code-guide #2
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -875,6 +894,7 @@ fn snapshot_activity_empty_centered_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -887,12 +907,12 @@ fn snapshot_activity_empty_centered_ui() {
     // No activity entries — should show centered "No activity yet"
 
     let output = render_to_string(&mut state, 28, 26);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ○ claude
-        Waiting for prompt…
+    └ project
+      ┃ ○ claude
+          Waiting for prompt…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -906,6 +926,7 @@ fn snapshot_git_clean_centered_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -918,12 +939,12 @@ fn snapshot_git_clean_centered_ui() {
     // No git info — should show centered "Working tree clean"
 
     let output = render_to_string(&mut state, 28, 26);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ○ claude
-        Waiting for prompt…
+    └ project
+      ┃ ○ claude
+          Waiting for prompt…
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
     ╰──────────────────────────╯
@@ -942,6 +963,7 @@ fn snapshot_git_branch_loaded_no_changes_shows_inline_clean() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -958,10 +980,10 @@ fn snapshot_git_branch_loaded_no_changes_shows_inline_clean() {
     state.git.branch = "main".into();
 
     let plain = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(plain, @r"
+    insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
     │──────────────────────────│
@@ -978,6 +1000,7 @@ fn snapshot_git_no_data_shows_centered_clean() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -993,10 +1016,10 @@ fn snapshot_git_no_data_shows_centered_clean() {
     // No git data at all
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
     ╰──────────────────────────╯
@@ -1012,6 +1035,7 @@ fn test_git_behind_only() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1045,6 +1069,7 @@ fn test_git_ahead_and_behind() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1080,6 +1105,7 @@ fn test_git_diff_insertions_only() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1114,6 +1140,7 @@ fn test_git_diff_deletions_only() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1148,6 +1175,7 @@ fn snapshot_branch_truncated_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@0".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1157,6 +1185,7 @@ fn snapshot_branch_truncated_ui() {
     // Use a repo group with a long branch name via PaneGitInfo
     state.repo_groups = vec![tmux_agent_sidebar::group::RepoGroup {
         name: "dotfiles".into(),
+        session_name: "main".into(),
         has_focus: true,
         panes: vec![(
             pane,
@@ -1171,12 +1200,13 @@ fn snapshot_branch_truncated_ui() {
     state.rebuild_row_targets();
 
     let plain = render_to_string(&mut state, 28, 30);
-    insta::assert_snapshot!(plain, @r"
+    insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    dotfiles                   +
-    ┃ ● claude
-    ┃   feature/tmux-sidebar-da…
+    main: 1 window
+    └ dotfiles                 +
+      ┃ ● claude
+      ┃   feature/tmux-sidebar-…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -1190,6 +1220,7 @@ fn snapshot_git_staged_unstaged_untracked_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1231,11 +1262,12 @@ fn snapshot_git_staged_unstaged_untracked_ui() {
     state.git.untracked_files = vec!["debug.log".into()];
 
     let output = render_to_string(&mut state, 28, 30);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
+      ┃ ● claude
     ╭ Activity │ Git ──────────╮
     │main                    #5│
     │+12/-3             4 files│
@@ -1258,6 +1290,7 @@ fn snapshot_git_long_branch_with_pr_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1282,10 +1315,10 @@ fn snapshot_git_long_branch_with_pr_ui() {
     }];
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │feature/very-long-br… #123│
     │+5/-2              1 files│
@@ -1304,6 +1337,7 @@ fn snapshot_git_staged_only_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1327,10 +1361,10 @@ fn snapshot_git_staged_only_ui() {
     }];
 
     let output = render_to_string(&mut state, 28, 24);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
+    main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
     │+20/-0             1 files│
@@ -1348,6 +1382,7 @@ fn snapshot_git_many_files_more_indicator_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1372,11 +1407,12 @@ fn snapshot_git_many_files_more_indicator_ui() {
         .collect();
 
     let output = render_to_string(&mut state, 28, 30);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
+      ┃ ● claude
     ╭ Activity │ Git ──────────╮
     │dev                       │
     │                   7 files│
@@ -1401,6 +1437,7 @@ fn snapshot_git_more_than_10_files_ui() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1425,11 +1462,12 @@ fn snapshot_git_more_than_10_files_ui() {
         .collect();
 
     let output = render_to_string(&mut state, 28, 30);
-    insta::assert_snapshot!(output, @r"
+    insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
+      ┃ ● claude
     ╭ Activity │ Git ──────────╮
     │dev                       │
     │                  12 files│
@@ -1463,6 +1501,7 @@ fn snapshot_focused_group_active_border_styled() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@0".into(),
+            window_index: "0".into(),
             window_name: "fish".into(),
             window_active: true,
             auto_rename: true,
@@ -1472,6 +1511,7 @@ fn snapshot_focused_group_active_border_styled() {
     state.repo_groups = vec![
         tmux_agent_sidebar::group::RepoGroup {
             name: "dotfiles".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(
                 pane1.clone(),
@@ -1480,6 +1520,7 @@ fn snapshot_focused_group_active_border_styled() {
         },
         tmux_agent_sidebar::group::RepoGroup {
             name: "my-app".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(
                 pane2.clone(),
@@ -1492,15 +1533,15 @@ fn snapshot_focused_group_active_border_styled() {
 
     // Styled snapshot locks in the focused group's accent color (fg:153) on
     // the active pane marker and the active bottom-panel border.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    d[fg:153]o[fg:153]t[fg:153]f[fg:153]i[fg:153]l[fg:153]e[fg:153]s[fg:153]
-    ┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-
-    m[fg:255]y[fg:255]-[fg:255]a[fg:255]p[fg:255]p[fg:255]
-      ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
-       [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]
+    ├[fg:244] d[fg:153]o[fg:153]t[fg:153]f[fg:153]i[fg:153]l[fg:153]e[fg:153]s[fg:153]
+    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    └[fg:244] m[fg:255]y[fg:255]-[fg:255]a[fg:255]p[fg:255]p[fg:255]
+     [fg:244] [fg:244]  ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
+     [fg:244] [fg:244]   [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
 
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
@@ -1533,6 +1574,7 @@ fn test_pet_enabled_preserves_bottom_panel_border() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1544,12 +1586,12 @@ fn test_pet_enabled_preserves_bottom_panel_border() {
     state.focus_state.sidebar_focused = false;
     state.pet_enabled = true;
 
-    insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
     ⓘ                                    — ▾
-    project
-    ┃ ○ claude
-        Waiting for prompt…
+    main: 1 window
+    └ project
+      ┃ ○ claude
       ▄ ▄
      ▄▀▀▀▄                             ████
       ▀ ▀                           ██ █  █

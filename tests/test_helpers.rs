@@ -125,9 +125,22 @@ pub fn make_pane(agent: AgentType, status: PaneStatus) -> PaneInfo {
     }
 }
 
+/// A window group in the default `main` session. `name` is the already
+/// formatted window label — real groups build it as `<index>: <window_name>`,
+/// which `group::group_panes_by_window` covers, so fixtures pass it straight
+/// through and keep the golden files readable.
 pub fn make_repo_group(name: &str, panes: Vec<PaneInfo>) -> tmux_agent_sidebar::group::RepoGroup {
+    make_window_group("main", name, panes)
+}
+
+pub fn make_window_group(
+    session: &str,
+    name: &str,
+    panes: Vec<PaneInfo>,
+) -> tmux_agent_sidebar::group::RepoGroup {
     tmux_agent_sidebar::group::RepoGroup {
         name: name.into(),
+        session_name: session.into(),
         has_focus: true,
         panes: panes
             .into_iter()

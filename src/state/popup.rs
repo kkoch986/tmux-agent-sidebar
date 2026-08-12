@@ -234,13 +234,17 @@ impl AppState {
             .iter()
             .find(|g| g.panes.iter().any(|(p, _)| p.pane_id == pane_id))
         else {
-            self.set_flash("spawn: could not find repo group for selection");
+            self.set_flash("spawn: could not find window group for selection");
             return;
         };
+        // Take the repo from the selected pane, not from the group: a window
+        // can hold panes in different repos, and spawning from a sibling
+        // pane's repo is not what pressing `n` on this one asked for.
         let Some(root) = group
             .panes
             .iter()
-            .find_map(|(_, git)| git.repo_root.clone())
+            .find(|(p, _)| p.pane_id == pane_id)
+            .and_then(|(_, git)| git.repo_root.clone())
         else {
             self.set_flash("spawn: selected pane is not in a git repo");
             return;
@@ -498,6 +502,13 @@ mod tests {
         }
     }
 
+    fn git_in(repo_root: &str) -> PaneGitInfo {
+        PaneGitInfo {
+            repo_root: Some(repo_root.into()),
+            ..Default::default()
+        }
+    }
+
     // ─── SpawnField cycle ────────────────────────────────────────────
 
     #[test]
@@ -536,14 +547,16 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![
             RepoGroup {
-                name: "alpha".into(),
+                name: "0: alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
-                panes: vec![],
+                panes: vec![(test_pane("%1"), git_in("/src/alpha"))],
             },
             RepoGroup {
-                name: "beta".into(),
+                name: "1: beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![],
+                panes: vec![(test_pane("%2"), git_in("/src/beta"))],
             },
         ];
 
@@ -562,14 +575,16 @@ mod tests {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![
             RepoGroup {
-                name: "alpha".into(),
+                name: "0: alpha".into(),
+                session_name: "main".into(),
                 has_focus: true,
-                panes: vec![(test_pane("%1"), PaneGitInfo::default())],
+                panes: vec![(test_pane("%1"), git_in("/src/alpha"))],
             },
             RepoGroup {
-                name: "beta".into(),
+                name: "1: beta".into(),
+                session_name: "main".into(),
                 has_focus: false,
-                panes: vec![(test_pane("%2"), PaneGitInfo::default())],
+                panes: vec![(test_pane("%2"), git_in("/src/beta"))],
             },
         ];
         state.popup = PopupState::Repo {
@@ -588,9 +603,10 @@ mod tests {
     fn confirm_repo_popup_all_resets_filter() {
         let mut state = AppState::new("%99".into());
         state.repo_groups = vec![RepoGroup {
-            name: "app".into(),
+            name: "0: app".into(),
+            session_name: "main".into(),
             has_focus: true,
-            panes: vec![(test_pane("%1"), PaneGitInfo::default())],
+            panes: vec![(test_pane("%1"), git_in("/src/app"))],
         }];
         state.global.repo_filter = RepoFilter::Repo("app".into());
         state.popup = PopupState::Repo {

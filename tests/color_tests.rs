@@ -127,6 +127,7 @@ fn test_permission_mode_bypass_all_renders_danger_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -139,12 +140,12 @@ fn test_permission_mode_bypass_all_renders_danger_color() {
 
     // Styled snapshot locks in the BypassAll `!` badge rendered with
     // badge_danger (fg:167).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:167]![fg:167]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:167]![fg:167]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -178,6 +179,7 @@ fn test_permission_mode_full_auto_renders_auto_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -190,12 +192,12 @@ fn test_permission_mode_full_auto_renders_auto_color() {
 
     // Styled snapshot locks in the Auto `auto` badge rendered with
     // badge_auto (fg:221).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:221]a[fg:221]u[fg:221]t[fg:221]o[fg:221]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:221]a[fg:221]u[fg:221]t[fg:221]o[fg:221]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -229,6 +231,7 @@ fn test_permission_mode_normal_no_badge() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -240,11 +243,11 @@ fn test_permission_mode_normal_no_badge() {
     state.focus_state.sidebar_focused = false;
 
     // Snapshot locks in that the agent row shows no badge in Normal mode.
-    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
     ⓘ                        — ▾
-    project
-    ┃ ● claude
+    main: 1 window
+    └ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -290,6 +293,7 @@ fn test_git_summary_modified_uses_badge_auto_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -313,11 +317,11 @@ fn test_git_summary_modified_uses_badge_auto_color() {
 
     // Styled snapshot locks in the Modified file badge color
     // (badge_auto fg:221).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -353,6 +357,7 @@ fn test_task_progress_line_uses_task_progress_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -375,13 +380,13 @@ fn test_task_progress_line_uses_task_progress_color() {
 
     // Styled snapshot locks in both the task_progress color (fg:223) and
     // the progress glyphs (✔/◼/◻) with the "1/3" count.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 40), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-       [fg:223] [fg:223]✔[fg:223]◼[fg:223]◻[fg:223] [fg:223]1[fg:223]/[fg:223]3[fg:223]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+     [fg:244] [fg:244]   [fg:223] [fg:223]✔[fg:223]◼[fg:223]◻[fg:223] [fg:223]1[fg:223]/[fg:223]3[fg:223]
 
 
 
@@ -428,6 +433,7 @@ fn test_subagent_line_uses_subagent_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -440,13 +446,13 @@ fn test_subagent_line_uses_subagent_color() {
 
     // Styled snapshot locks in the subagent line color (fg:73) plus the
     // rendered "Explore #1" label.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-       [fg:252] [fg:252]└[fg:252] [fg:252]E[fg:73]x[fg:73]p[fg:73]l[fg:73]o[fg:73]r[fg:73]e[fg:73] [fg:73]#[fg:73]1[fg:73]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+     [fg:244] [fg:244]   [fg:252] [fg:252]└[fg:252] [fg:252]E[fg:73]x[fg:73]p[fg:73]l[fg:73]o[fg:73]r[fg:73]e[fg:73] [fg:73]#[fg:73]1[fg:73]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -482,6 +488,7 @@ fn test_response_arrow_uses_response_arrow_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -495,13 +502,13 @@ fn test_response_arrow_uses_response_arrow_color() {
     // Styled snapshot locks in:
     //   • response_arrow color (fg:81) + bold on the ▷ glyph
     //   • text_active color (fg:255) on the focused response text
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-      ▷[fg:81,bold] [fg:81,bold]T[fg:255]a[fg:255]s[fg:255]k[fg:255] [fg:255]c[fg:255]o[fg:255]m[fg:255]p[fg:255]l[fg:255]e[fg:255]t[fg:255]e[fg:255]d[fg:255] [fg:255]s[fg:255]u[fg:255]c[fg:255]c[fg:255]e[fg:255]s[fg:255]s[fg:255]f[fg:255]u[fg:255]l[fg:255]l[fg:255]y[fg:255]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+     [fg:244] [fg:244]  ▷[fg:81,bold] [fg:81,bold]T[fg:255]a[fg:255]s[fg:255]k[fg:255] [fg:255]c[fg:255]o[fg:255]m[fg:255]p[fg:255]l[fg:255]e[fg:255]t[fg:255]e[fg:255]d[fg:255] [fg:255]s[fg:255]u[fg:255]c[fg:255]c[fg:255]e[fg:255]s[fg:255]s[fg:255]f[fg:255]u[fg:255]l[fg:255]l[fg:255]y[fg:255]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -536,6 +543,7 @@ fn test_pr_link_uses_pr_link_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -554,12 +562,12 @@ fn test_pr_link_uses_pr_link_color() {
 
     // Styled snapshot locks in the PR link: pr_link color (fg:117) plus
     // the underline modifier on the `#99` glyphs.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
 
 
 
@@ -605,6 +613,7 @@ fn test_diff_stat_added_uses_diff_added_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -622,12 +631,12 @@ fn test_diff_stat_added_uses_diff_added_color() {
 
     // Styled snapshot locks in the `+42` additions rendered with
     // diff_added color (fg:114).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
 
 
 
@@ -673,6 +682,7 @@ fn test_diff_stat_deleted_uses_diff_deleted_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -690,11 +700,11 @@ fn test_diff_stat_deleted_uses_diff_deleted_color() {
 
     // Styled snapshot locks in the `-25` deletions rendered with
     // diff_deleted color (fg:174).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -726,6 +736,7 @@ fn test_file_change_stat_uses_file_change_color() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -749,11 +760,11 @@ fn test_file_change_stat_uses_file_change_color() {
 
     // Styled snapshot locks in the `M lib.rs` row rendered with
     // badge_auto (fg:221) on the status glyph.
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -824,6 +835,7 @@ fn test_branch_color_in_agent_panel() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -832,6 +844,7 @@ fn test_branch_color_in_agent_panel() {
     }]);
     state.repo_groups = vec![tmux_agent_sidebar::group::RepoGroup {
         name: "project".into(),
+        session_name: "main".into(),
         has_focus: true,
         panes: vec![(
             pane,
@@ -849,12 +862,13 @@ fn test_branch_color_in_agent_panel() {
 
     // Styled snapshot locks in the branch name rendered with branch color
     // (fg:109).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 26), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]                                +[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-    ┃[fg:153]  [fg:109] [fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]/[fg:109]c[fg:109]o[fg:109]o[fg:109]l[fg:109]-[fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]                              +[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+     [fg:244] [fg:244]┃[fg:153]  [fg:109] [fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]/[fg:109]c[fg:109]o[fg:109]o[fg:109]l[fg:109]-[fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]
     ");
 }
 
@@ -867,6 +881,7 @@ fn test_selection_bg_color_applied() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -880,11 +895,11 @@ fn test_selection_bg_color_applied() {
 
     // Styled snapshot locks in the selected agent row's selection
     // background (bg:239).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    ┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-       [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -922,6 +937,7 @@ fn test_accent_vs_border_inactive_colors() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@0".into(),
+            window_index: "0".into(),
             window_name: "fish".into(),
             window_active: true,
             auto_rename: true,
@@ -931,11 +947,13 @@ fn test_accent_vs_border_inactive_colors() {
     state.repo_groups = vec![
         tmux_agent_sidebar::group::RepoGroup {
             name: "focused-repo".into(),
+            session_name: "main".into(),
             has_focus: true,
             panes: vec![(pane1, tmux_agent_sidebar::group::PaneGitInfo::default())],
         },
         tmux_agent_sidebar::group::RepoGroup {
             name: "unfocused-repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(pane2, tmux_agent_sidebar::group::PaneGitInfo::default())],
         },
@@ -946,15 +964,15 @@ fn test_accent_vs_border_inactive_colors() {
     // Styled snapshot locks in:
     //   • focused group header rendered with accent (fg:153)
     //   • unfocused group header rendered with border_inactive (fg:240)
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    f[fg:153]o[fg:153]c[fg:153]u[fg:153]s[fg:153]e[fg:153]d[fg:153]-[fg:153]r[fg:153]e[fg:153]p[fg:153]o[fg:153]
-    ┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-
-    u[fg:255]n[fg:255]f[fg:255]o[fg:255]c[fg:255]u[fg:255]s[fg:255]e[fg:255]d[fg:255]-[fg:255]r[fg:255]e[fg:255]p[fg:255]o[fg:255]
-      ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
-       [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]
+    ├[fg:244] f[fg:153]o[fg:153]c[fg:153]u[fg:153]s[fg:153]e[fg:153]d[fg:153]-[fg:153]r[fg:153]e[fg:153]p[fg:153]o[fg:153]
+    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    └[fg:244] u[fg:255]n[fg:255]f[fg:255]o[fg:255]c[fg:255]u[fg:255]s[fg:255]e[fg:255]d[fg:255]-[fg:255]r[fg:255]e[fg:255]p[fg:255]o[fg:255]
+     [fg:244] [fg:244]  ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
+     [fg:244] [fg:244]   [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
 
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
@@ -989,6 +1007,7 @@ fn test_running_status_color_in_output() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1002,11 +1021,12 @@ fn test_running_status_color_in_output() {
 
     // Styled snapshot locks in the running spinner using SPINNER_PULSE[0]
     // color (fg:82).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
     ");
 }
 
@@ -1017,6 +1037,7 @@ fn test_waiting_status_color_in_output() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1030,11 +1051,12 @@ fn test_waiting_status_color_in_output() {
 
     // Styled snapshot locks in the waiting status using status_waiting
     // color (fg:221).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]1[fg:255]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ◐[fg:221] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ◐[fg:221] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
     ");
 }
 
@@ -1045,6 +1067,7 @@ fn test_error_status_color_in_output() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1058,11 +1081,12 @@ fn test_error_status_color_in_output() {
 
     // Styled snapshot locks in the error status using status_error
     // color (fg:167).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]1[fg:255]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ✕[fg:167] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ✕[fg:167] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
     ");
 }
 
@@ -1073,6 +1097,7 @@ fn test_idle_status_color_in_output() {
         session_name: "main".into(),
         windows: vec![WindowInfo {
             window_id: "@1".into(),
+            window_index: "0".into(),
             window_name: "project".into(),
             window_active: true,
             auto_rename: false,
@@ -1085,11 +1110,11 @@ fn test_idle_status_color_in_output() {
 
     // Styled snapshot locks in the idle status using status_idle
     // color (fg:110).
-    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @r"
+    insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
     ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-    p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-    ┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
+    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]

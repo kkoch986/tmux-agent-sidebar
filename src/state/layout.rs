@@ -73,7 +73,10 @@ impl AppState {
         // persist the reset back to tmux so fresh sidebar instances do
         // not reload the dead repo name on startup.
         if let RepoFilter::Repo(ref name) = self.global.repo_filter
-            && !self.repo_groups.iter().any(|g| g.name == *name)
+            && !self
+                .repo_groups
+                .iter()
+                .any(|g| g.repo_names().iter().any(|repo| repo == name))
         {
             self.global.repo_filter = RepoFilter::All;
             self.global.save_repo_filter();
@@ -81,11 +84,10 @@ impl AppState {
 
         self.layout.pane_row_targets.clear();
         for group in &self.repo_groups {
-            if !self.global.repo_filter.matches_group(&group.name) {
-                continue;
-            }
-            for (pane, _) in &group.panes {
-                if self.global.status_filter.matches(&pane.status) {
+            for (pane, git) in &group.panes {
+                if self.global.repo_filter.matches_pane(pane, git)
+                    && self.global.status_filter.matches(&pane.status)
+                {
                     self.layout.pane_row_targets.push(RowTarget {
                         pane_id: pane.pane_id.clone(),
                     });

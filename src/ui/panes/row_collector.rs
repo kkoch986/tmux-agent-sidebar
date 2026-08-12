@@ -5,8 +5,20 @@ use ratatui::{
 
 use super::SPAWN_BUTTON;
 use super::row;
+use crate::group::{PaneGitInfo, RepoGroup};
 use crate::state::{AppState, Focus};
+use crate::tmux::PaneInfo;
+use crate::ui::colors::ColorTheme;
 use crate::ui::text::display_width;
+
+/// Tree glyphs mirroring `choose-tree` (`prefix + w`): a window hangs off its
+/// session with `├`, the session's last window with `└`, and pane rows sit
+/// under a `│` trunk that stops at the last window.
+const TREE_BRANCH: &str = "├";
+const TREE_ELBOW: &str = "└";
+const TREE_TRUNK: &str = "│";
+/// Columns the tree gutter consumes: one glyph plus one space.
+const GUTTER_WIDTH: usize = 2;
 
 #[derive(Debug, Default)]
 pub(super) struct CollectedRows {
@@ -16,35 +28,95 @@ pub(super) struct CollectedRows {
     pub pending_remove: Vec<(usize, u16, String)>,
 }
 
+/// A window group that survived filtering, with the panes that survived it.
+struct VisibleGroup<'a> {
+    group: &'a RepoGroup,
+    panes: Vec<&'a (PaneInfo, PaneGitInfo)>,
+    /// Last *visible* window of its session. Recomputed here because
+    /// `RepoGroup::is_last_in_session` describes the unfiltered tree.
+    is_last_in_session: bool,
+}
+
+/// Drop panes and windows the status and repo filters exclude, then mark the
+/// last surviving window of each session so the elbow glyph lands correctly.
+fn visible_groups(state: &AppState) -> Vec<VisibleGroup<'_>> {
+    let status_filter = state.global.status_filter;
+    let repo_filter = &state.global.repo_filter;
+
+    let mut visible: Vec<VisibleGroup<'_>> = state
+        .repo_groups
+        .iter()
+        .filter_map(|group| {
+            let panes: Vec<_> = group
+                .panes
+                .iter()
+                .filter(|(pane, git)| {
+                    status_filter.matches(&pane.status) && repo_filter.matches_pane(pane, git)
+                })
+                .collect();
+            (!panes.is_empty()).then_some(VisibleGroup {
+                group,
+                panes,
+                is_last_in_session: false,
+            })
+        })
+        .collect();
+
+    for i in 0..visible.len() {
+        let is_last = visible
+            .get(i + 1)
+            .is_none_or(|next| next.group.session_name != visible[i].group.session_name);
+        visible[i].is_last_in_session = is_last;
+    }
+    visible
+}
+
 pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
     let width = width as usize;
     let theme = &state.theme;
 
     let mut collected = CollectedRows::default();
-    let filter = state.global.status_filter;
-    let mut first_group = true;
     let mut row_index: usize = 0;
+    let visible = visible_groups(state);
+    let mut prev_session: Option<&str> = None;
 
-    for group in &state.repo_groups {
-        if !state.global.repo_filter.matches_group(&group.name) {
-            continue;
-        }
-        let filtered_panes: Vec<_> = group
-            .panes
-            .iter()
-            .filter(|(pane, _)| filter.matches(&pane.status))
-            .collect();
-        if filtered_panes.is_empty() {
-            continue;
-        }
+    for (idx, visible_group) in visible.iter().enumerate() {
+        let group = visible_group.group;
+        let filtered_panes = &visible_group.panes;
 
-        if !first_group {
-            // Separate repo groups, but do not add a leading blank before
-            // the first repo so the list starts immediately below the header.
-            collected.lines.push(Line::from(""));
+        // Session header whenever the session changes, matching the
+        // `choose-tree` top level. The window count is of *visible* windows,
+        // so it never disagrees with the rows drawn under it.
+        if prev_session != Some(group.session_name.as_str()) {
+            if idx > 0 {
+                collected.lines.push(Line::from(""));
+                collected.line_to_row.push(None);
+            }
+            let window_count = visible[idx..]
+                .iter()
+                .take_while(|g| g.group.session_name == group.session_name)
+                .count();
+            let session_has_focus = visible[idx..]
+                .iter()
+                .take_while(|g| g.group.session_name == group.session_name)
+                .any(|g| g.group.has_focus);
+            let label = format!(
+                "{}: {} window{}",
+                group.session_name,
+                window_count,
+                if window_count == 1 { "" } else { "s" }
+            );
+            let color = if session_has_focus {
+                theme.accent
+            } else {
+                theme.session_header
+            };
+            collected
+                .lines
+                .push(Line::from(Span::styled(label, Style::default().fg(color))));
             collected.line_to_row.push(None);
+            prev_session = Some(group.session_name.as_str());
         }
-        first_group = false;
 
         let group_has_focused_pane = state
             .focus_state
@@ -52,46 +124,55 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
             .as_ref()
             .is_some_and(|fid| group.panes.iter().any(|(p, _)| p.pane_id == *fid));
 
-        // Plain repo header at column 0, with a `[+]` spawn button
-        // right-aligned on the same row. Only rendered when the group
-        // has a resolved repo_root — panes outside a git repo get a
-        // plain title.
+        // Window row: tree glyph, `<index>: <name>`, and a right-aligned
+        // `[+]` spawn button when the window's panes agree on one repo root.
+        let elbow = if visible_group.is_last_in_session {
+            TREE_ELBOW
+        } else {
+            TREE_BRANCH
+        };
         let title = &group.name;
         let title_color = if group_has_focused_pane {
             theme.accent
         } else {
             theme.text_active
         };
-        let repo_root = group
-            .panes
-            .iter()
-            .find_map(|(_, git)| git.repo_root.clone());
-        let spans: Vec<Span<'static>> = if let Some(ref root) = repo_root {
-            let title_w = display_width(title);
+        let gutter_style = Style::default().fg(theme.text_inactive);
+        let mut spans: Vec<Span<'static>> = vec![
+            Span::styled(elbow.to_string(), gutter_style),
+            Span::raw(" "),
+            Span::styled(title.clone(), Style::default().fg(title_color)),
+        ];
+        if let Some(root) = group.spawn_repo_root() {
+            let used = GUTTER_WIDTH + display_width(title);
             let pad_width = width
-                .saturating_sub(title_w)
+                .saturating_sub(used)
                 .saturating_sub(SPAWN_BUTTON.len());
             collected
                 .pending_spawn
-                .push((collected.lines.len(), group.name.clone(), root.clone()));
+                .push((collected.lines.len(), group.name.clone(), root));
             let button_color = if group_has_focused_pane {
                 theme.accent
             } else {
                 theme.text_active
             };
-            vec![
-                Span::styled(title.clone(), Style::default().fg(title_color)),
-                Span::raw(" ".repeat(pad_width)),
-                Span::styled(SPAWN_BUTTON, Style::default().fg(button_color)),
-            ]
-        } else {
-            vec![Span::styled(
-                title.clone(),
-                Style::default().fg(title_color),
-            )]
-        };
+            spans.push(Span::raw(" ".repeat(pad_width)));
+            spans.push(Span::styled(
+                SPAWN_BUTTON,
+                Style::default().fg(button_color),
+            ));
+        }
         collected.lines.push(Line::from(spans));
         collected.line_to_row.push(None);
+
+        // Pane rows are rendered into the width left of the gutter, then
+        // shifted right by it, so the trunk column stays clear.
+        let trunk = if visible_group.is_last_in_session {
+            " "
+        } else {
+            TREE_TRUNK
+        };
+        let pane_width = width.saturating_sub(GUTTER_WIDTH);
 
         for (pane, git_info) in filtered_panes.iter() {
             let is_selected = state.focus_state.sidebar_focused
@@ -111,15 +192,15 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
                 task_progress,
                 is_selected,
                 is_active,
-                width,
+                pane_width,
                 &state.icons,
                 theme,
                 state.spinner_frame,
                 state.now,
             );
             let pane_line_count = pane_lines.len();
-            collected.lines.extend(pane_lines);
-            for _ in 0..pane_line_count {
+            for line in pane_lines {
+                collected.lines.push(indent_under_trunk(line, trunk, theme));
                 collected.line_to_row.push(Some(row_index));
             }
 
@@ -132,12 +213,18 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
             if pane.sidebar_spawned
                 && git_info.is_worktree
                 && pane_line_count >= 2
-                && let Some(x) =
-                    row::sidebar_remove_marker_col(git_info, ports, true, width.saturating_sub(2))
+                && let Some(x) = row::sidebar_remove_marker_col(
+                    git_info,
+                    ports,
+                    true,
+                    pane_width.saturating_sub(2),
+                )
             {
-                collected
-                    .pending_remove
-                    .push((status_line_idx + 1, x, pane.pane_id.clone()));
+                collected.pending_remove.push((
+                    status_line_idx + 1,
+                    x + GUTTER_WIDTH as u16,
+                    pane.pane_id.clone(),
+                ));
             }
 
             row_index += 1;
@@ -145,6 +232,20 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
     }
 
     collected
+}
+
+/// Shift a pane row right by the tree gutter, prefixing the session trunk.
+/// The gutter deliberately carries no selection background so the trunk stays
+/// readable through a highlighted row.
+fn indent_under_trunk(mut line: Line<'static>, trunk: &str, theme: &ColorTheme) -> Line<'static> {
+    line.spans.insert(
+        0,
+        Span::styled(
+            format!("{trunk} "),
+            Style::default().fg(theme.text_inactive),
+        ),
+    );
+    line
 }
 
 #[cfg(test)]
@@ -195,6 +296,7 @@ mod tests {
         state.global.status_filter = StatusFilter::Waiting;
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(make_pane("%1", PaneStatus::Running), PaneGitInfo::default())],
         }];
@@ -214,6 +316,7 @@ mod tests {
         };
         state.repo_groups = vec![RepoGroup {
             name: "repo".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(make_pane("%1", PaneStatus::Running), git_info)],
         }];
@@ -234,6 +337,7 @@ mod tests {
         let mut state = AppState::new("%0".into());
         state.repo_groups = vec![RepoGroup {
             name: "raw-path".into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(make_pane("%1", PaneStatus::Running), PaneGitInfo::default())],
         }];
@@ -249,6 +353,7 @@ mod tests {
         let mut state = AppState::new("%0".into());
         let with_root = |root: &str, name: &str, pane_id: &str| RepoGroup {
             name: name.into(),
+            session_name: "main".into(),
             has_focus: false,
             panes: vec![(
                 make_pane(pane_id, PaneStatus::Running),

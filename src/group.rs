@@ -1,5 +1,3 @@
-use indexmap::IndexMap;
-
 use crate::git::run_git;
 use crate::tmux::PaneInfo;
 
@@ -12,15 +10,64 @@ pub struct PaneGitInfo {
     pub worktree_name: Option<String>,
 }
 
-/// A group of panes working in the same repository (or directory).
-#[derive(Debug, Clone)]
+/// A group of panes living in the same tmux window.
+#[derive(Debug, Clone, Default)]
 pub struct RepoGroup {
-    /// Display name: repo directory basename, or raw path for non-git
+    /// Display name for the window row: `"<index>: <window_name>"`
     pub name: String,
+    /// Session the window belongs to; groups are emitted session by session
+    /// and the UI draws a header whenever this changes. Which window is a
+    /// session's *last* one is deliberately not stored — only the UI knows
+    /// that, after filtering has hidden windows.
+    pub session_name: String,
     /// Whether any pane in the group belongs to the focused (active) window
     pub has_focus: bool,
     /// Panes in this group, with their git info
     pub panes: Vec<(PaneInfo, PaneGitInfo)>,
+}
+
+impl RepoGroup {
+    /// Repo basenames the window's panes sit in, deduped in encounter order.
+    /// The repo filter used to key off `name` back when a group *was* a repo;
+    /// now that a group is a window, it has to read the panes instead.
+    pub fn repo_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for (pane, git) in &self.panes {
+            if let Some(name) = repo_display_name(pane, git)
+                && !names.contains(&name)
+            {
+                names.push(name);
+            }
+        }
+        names
+    }
+
+    /// The repo root to spawn a new worktree from, when the window's panes
+    /// agree on exactly one. A window straddling two repos has no unambiguous
+    /// answer, so it gets no `[+]` button.
+    pub fn spawn_repo_root(&self) -> Option<String> {
+        let mut root: Option<&str> = None;
+        for (_, git) in &self.panes {
+            let candidate = git.repo_root.as_deref()?;
+            match root {
+                None => root = Some(candidate),
+                Some(existing) if existing == candidate => {}
+                Some(_) => return None,
+            }
+        }
+        root.map(str::to_string)
+    }
+}
+
+/// Name a pane's repo the way the old repo grouping did: the basename of the
+/// git repo root, falling back to the basename of the pane's cwd when the
+/// pane is not in a repo at all.
+pub fn repo_display_name(pane: &PaneInfo, git: &PaneGitInfo) -> Option<String> {
+    let key = git.repo_root.as_deref().unwrap_or(pane.path.as_str());
+    if key.is_empty() {
+        return None;
+    }
+    Some(key.rsplit('/').next().unwrap_or(key).to_string())
 }
 
 /// Resolve git info for a single pane path.
@@ -78,16 +125,25 @@ pub fn resolve_pane_git_info(path: &str) -> PaneGitInfo {
     }
 }
 
-/// Group all panes across all sessions by repo root.
-/// Returns groups sorted alphabetically by display name (case-insensitive),
-/// so the order is stable regardless of which pane is encountered first.
-pub fn group_panes_by_repo(sessions: &[crate::tmux::SessionInfo]) -> Vec<RepoGroup> {
-    let mut groups: IndexMap<String, RepoGroup> = IndexMap::new();
+/// Group all panes into the tmux session → window → pane tree that
+/// `choose-tree` (`prefix + w`) shows: one group per window, emitted in
+/// session-then-window-index order. Window order comes from
+/// `tmux::query::finalize_sessions`, so this function preserves input order
+/// rather than sorting.
+pub fn group_panes_by_window(sessions: &[crate::tmux::SessionInfo]) -> Vec<RepoGroup> {
+    let mut groups: Vec<RepoGroup> = Vec::new();
     let mut git_cache: std::collections::HashMap<String, PaneGitInfo> =
         std::collections::HashMap::new();
 
     for session in sessions {
         for window in &session.windows {
+            let mut group = RepoGroup {
+                name: format!("{}: {}", window.window_index, window.window_name),
+                session_name: session.session_name.clone(),
+                has_focus: false,
+                panes: Vec::new(),
+            };
+
             for pane in &window.panes {
                 // Cache the base git info per path. `get` first avoids a key
                 // clone on cache hits; misses fall through to `insert` which
@@ -113,37 +169,20 @@ pub fn group_panes_by_repo(sessions: &[crate::tmux::SessionInfo]) -> Vec<RepoGro
                     git_info.is_worktree = true;
                 }
 
-                let group_key = match &git_info.repo_root {
-                    Some(root) => root.clone(),
-                    None => pane.path.clone(),
-                };
-
-                let display_name = group_key
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(&group_key)
-                    .to_string();
-
-                let has_focus = window.window_active && pane.pane_active;
-
-                let group = groups.entry(group_key).or_insert_with(|| RepoGroup {
-                    name: display_name,
-                    has_focus: false,
-                    panes: Vec::new(),
-                });
-
-                if has_focus {
+                if window.window_active && pane.pane_active {
                     group.has_focus = true;
                 }
 
                 group.panes.push((pane.clone(), git_info));
             }
+
+            if !group.panes.is_empty() {
+                groups.push(group);
+            }
         }
     }
 
-    let mut result: Vec<RepoGroup> = groups.into_values().collect();
-    result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    result
+    groups
 }
 
 /// Resolve a possibly-relative git path to an absolute canonical path.
@@ -206,7 +245,7 @@ mod tests {
         assert_eq!(result, std::path::PathBuf::from("/base/dir/relative"));
     }
 
-    // ─── group_panes_by_repo tests ──────────────────────────────────
+    // ─── group_panes_by_window tests ────────────────────────────────
 
     fn test_pane(id: &str, path: &str) -> PaneInfo {
         PaneInfo {
@@ -232,74 +271,118 @@ mod tests {
         }
     }
 
-    fn test_window(panes: Vec<PaneInfo>, active: bool) -> crate::tmux::WindowInfo {
+    fn test_window(
+        index: &str,
+        name: &str,
+        panes: Vec<PaneInfo>,
+        active: bool,
+    ) -> crate::tmux::WindowInfo {
         crate::tmux::WindowInfo {
-            window_id: "@0".into(),
-            window_name: "test".into(),
+            window_id: format!("@{index}"),
+            window_index: index.into(),
+            window_name: name.into(),
             window_active: active,
             auto_rename: false,
             panes,
         }
     }
 
-    fn test_session(windows: Vec<crate::tmux::WindowInfo>) -> crate::tmux::SessionInfo {
+    fn test_session(name: &str, windows: Vec<crate::tmux::WindowInfo>) -> crate::tmux::SessionInfo {
         crate::tmux::SessionInfo {
-            session_name: "main".into(),
+            session_name: name.into(),
             windows,
         }
     }
 
     #[test]
     fn group_panes_empty_sessions() {
-        let groups = group_panes_by_repo(&[]);
+        let groups = group_panes_by_window(&[]);
         assert!(groups.is_empty());
     }
 
     #[test]
-    fn group_panes_same_repo() {
-        // Two panes in the same real repo should be grouped together
+    fn group_panes_one_group_per_window() {
+        // Two panes in the same repo but different windows must NOT merge —
+        // this is the whole point of the window tree, and the inverse of what
+        // the old repo grouping did.
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let pane1 = test_pane("%1", manifest_dir);
-        let pane2 = test_pane("%2", manifest_dir);
+        let sessions = vec![test_session(
+            "main",
+            vec![
+                test_window("0", "editor", vec![test_pane("%1", manifest_dir)], true),
+                test_window("1", "tests", vec![test_pane("%2", manifest_dir)], false),
+            ],
+        )];
+        let groups = group_panes_by_window(&sessions);
 
-        let sessions = vec![test_session(vec![test_window(vec![pane1, pane2], true)])];
-        let groups = group_panes_by_repo(&sessions);
-
-        assert_eq!(groups.len(), 1, "same repo path should produce one group");
-        assert_eq!(groups[0].panes.len(), 2);
+        assert_eq!(groups.len(), 2, "each window gets its own group");
+        assert_eq!(groups[0].name, "0: editor");
+        assert_eq!(groups[1].name, "1: tests");
         assert_eq!(groups[0].panes[0].0.pane_id, "%1");
-        assert_eq!(groups[0].panes[1].0.pane_id, "%2");
+        assert_eq!(groups[1].panes[0].0.pane_id, "%2");
     }
 
     #[test]
-    fn group_panes_non_git_path_uses_raw_path() {
-        // A non-git path should use the raw path as the group key
-        let pane = test_pane("%1", "/tmp/no-git-here");
-
-        let sessions = vec![test_session(vec![test_window(vec![pane], true)])];
-        let groups = group_panes_by_repo(&sessions);
-
-        assert_eq!(groups.len(), 1);
-        assert_eq!(groups[0].name, "no-git-here");
-    }
-
-    #[test]
-    fn group_panes_display_name_is_basename() {
+    fn group_panes_keeps_multiple_panes_of_one_window_together() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let pane = test_pane("%1", manifest_dir);
-
-        let sessions = vec![test_session(vec![test_window(vec![pane], true)])];
-        let groups = group_panes_by_repo(&sessions);
+        let sessions = vec![test_session(
+            "main",
+            vec![test_window(
+                "3",
+                "work",
+                vec![test_pane("%1", manifest_dir), test_pane("%2", "/tmp/other")],
+                true,
+            )],
+        )];
+        let groups = group_panes_by_window(&sessions);
 
         assert_eq!(groups.len(), 1);
-        let expected_name = std::path::Path::new(manifest_dir)
-            .file_name()
-            .unwrap()
-            .to_string_lossy();
-        assert_eq!(
-            groups[0].name, expected_name,
-            "display name should be repo basename"
-        );
+        assert_eq!(groups[0].panes.len(), 2);
+    }
+
+    #[test]
+    fn group_panes_preserves_session_and_window_order() {
+        // Groups must come out in input order, not sorted by name, so the tree
+        // matches `choose-tree`. Ordering itself is `finalize_sessions`' job.
+        let sessions = vec![
+            test_session(
+                "alpha",
+                vec![
+                    test_window("0", "zzz", vec![test_pane("%1", "/tmp/a")], true),
+                    test_window("1", "aaa", vec![test_pane("%2", "/tmp/b")], false),
+                ],
+            ),
+            test_session(
+                "beta",
+                vec![test_window(
+                    "9",
+                    "mmm",
+                    vec![test_pane("%3", "/tmp/c")],
+                    false,
+                )],
+            ),
+        ];
+        let groups = group_panes_by_window(&sessions);
+
+        let names: Vec<&str> = groups.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(names, vec!["0: zzz", "1: aaa", "9: mmm"]);
+        let owners: Vec<&str> = groups.iter().map(|g| g.session_name.as_str()).collect();
+        assert_eq!(owners, vec!["alpha", "alpha", "beta"]);
+    }
+
+    #[test]
+    fn group_panes_skips_windows_with_no_panes() {
+        let sessions = vec![test_session(
+            "main",
+            vec![
+                test_window("0", "empty", vec![], true),
+                test_window("1", "busy", vec![test_pane("%1", "/tmp/a")], false),
+            ],
+        )];
+        let groups = group_panes_by_window(&sessions);
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].name, "1: busy");
     }
 
     #[test]
@@ -308,8 +391,11 @@ mod tests {
         let mut pane = test_pane("%1", manifest_dir);
         pane.pane_active = true;
 
-        let sessions = vec![test_session(vec![test_window(vec![pane], true)])];
-        let groups = group_panes_by_repo(&sessions);
+        let sessions = vec![test_session(
+            "main",
+            vec![test_window("0", "w", vec![pane], true)],
+        )];
+        let groups = group_panes_by_window(&sessions);
 
         assert!(
             groups[0].has_focus,
@@ -323,8 +409,11 @@ mod tests {
         let mut pane = test_pane("%1", manifest_dir);
         pane.pane_active = true;
 
-        let sessions = vec![test_session(vec![test_window(vec![pane], false)])]; // window_active=false
-        let groups = group_panes_by_repo(&sessions);
+        let sessions = vec![test_session(
+            "main",
+            vec![test_window("0", "w", vec![pane], false)],
+        )];
+        let groups = group_panes_by_window(&sessions);
 
         assert!(
             !groups[0].has_focus,
@@ -332,94 +421,71 @@ mod tests {
         );
     }
 
-    #[test]
-    fn group_panes_empty_path_pane() {
-        let pane = test_pane("%1", "");
+    // ─── repo_names / spawn_repo_root tests ─────────────────────────
 
-        let sessions = vec![test_session(vec![test_window(vec![pane], true)])];
-        let groups = group_panes_by_repo(&sessions);
+    fn group_with(panes: Vec<(PaneInfo, PaneGitInfo)>) -> RepoGroup {
+        RepoGroup {
+            panes,
+            ..Default::default()
+        }
+    }
 
-        // Empty path pane should still be grouped (by empty key)
-        assert_eq!(groups.len(), 1);
+    fn git_at(root: &str) -> PaneGitInfo {
+        PaneGitInfo {
+            repo_root: Some(root.into()),
+            ..Default::default()
+        }
     }
 
     #[test]
-    fn group_panes_multiple_sessions() {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let pane1 = test_pane("%1", manifest_dir);
-        let pane2 = test_pane("%2", "/tmp/other-project");
-
-        let sessions = vec![
-            test_session(vec![test_window(vec![pane1], true)]),
-            crate::tmux::SessionInfo {
-                session_name: "other".into(),
-                windows: vec![test_window(vec![pane2], false)],
-            },
-        ];
-        let groups = group_panes_by_repo(&sessions);
-
-        assert_eq!(
-            groups.len(),
-            2,
-            "different repos across sessions should produce separate groups"
-        );
+    fn repo_names_dedupes_and_keeps_encounter_order() {
+        let group = group_with(vec![
+            (test_pane("%1", "/src/beta"), git_at("/src/beta")),
+            (test_pane("%2", "/src/alpha"), git_at("/src/alpha")),
+            (test_pane("%3", "/src/beta"), git_at("/src/beta")),
+        ]);
+        assert_eq!(group.repo_names(), vec!["beta", "alpha"]);
     }
 
     #[test]
-    fn group_panes_same_repo_across_sessions_merge_into_one_group() {
-        // Regression for the `state.sessions` field removal: panes that
-        // live in different tmux sessions but share the same repo path
-        // must still collapse into a single `RepoGroup`. This is what
-        // makes the sidebar usable across multi-session workflows.
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let pane_session_a = test_pane("%1", manifest_dir);
-        let pane_session_b = test_pane("%2", manifest_dir);
-
-        let sessions = vec![
-            crate::tmux::SessionInfo {
-                session_name: "alpha".into(),
-                windows: vec![test_window(vec![pane_session_a], true)],
-            },
-            crate::tmux::SessionInfo {
-                session_name: "beta".into(),
-                windows: vec![test_window(vec![pane_session_b], false)],
-            },
-        ];
-        let groups = group_panes_by_repo(&sessions);
-
-        assert_eq!(
-            groups.len(),
-            1,
-            "panes in the same repo across sessions must merge into one group"
-        );
-        assert_eq!(groups[0].panes.len(), 2);
-        let pane_ids: Vec<&str> = groups[0]
-            .panes
-            .iter()
-            .map(|(p, _)| p.pane_id.as_str())
-            .collect();
-        assert!(pane_ids.contains(&"%1"));
-        assert!(pane_ids.contains(&"%2"));
+    fn repo_names_falls_back_to_cwd_basename_outside_a_repo() {
+        let group = group_with(vec![(
+            test_pane("%1", "/tmp/no-git-here"),
+            PaneGitInfo::default(),
+        )]);
+        assert_eq!(group.repo_names(), vec!["no-git-here"]);
     }
 
     #[test]
-    fn group_panes_sorted_by_name_case_insensitive() {
-        // Groups should be sorted alphabetically regardless of encounter order
-        let pane1 = test_pane("%1", "/tmp/zzz");
-        let pane2 = test_pane("%2", "/tmp/Aaa");
-        let pane3 = test_pane("%3", "/tmp/mmm");
-        let pane4 = test_pane("%4", "/tmp/zzz");
+    fn repo_names_skips_panes_with_no_path() {
+        let group = group_with(vec![(test_pane("%1", ""), PaneGitInfo::default())]);
+        assert!(group.repo_names().is_empty());
+    }
 
-        let sessions = vec![test_session(vec![test_window(
-            vec![pane1, pane2, pane3, pane4],
-            true,
-        )])];
-        let groups = group_panes_by_repo(&sessions);
+    #[test]
+    fn spawn_repo_root_when_window_agrees_on_one_repo() {
+        let group = group_with(vec![
+            (test_pane("%1", "/src/app"), git_at("/src/app")),
+            (test_pane("%2", "/src/app/sub"), git_at("/src/app")),
+        ]);
+        assert_eq!(group.spawn_repo_root().as_deref(), Some("/src/app"));
+    }
 
-        assert_eq!(groups.len(), 3);
-        assert_eq!(groups[0].name, "Aaa");
-        assert_eq!(groups[1].name, "mmm");
-        assert_eq!(groups[2].name, "zzz");
-        assert_eq!(groups[2].panes.len(), 2, "zzz should have 2 panes");
+    #[test]
+    fn spawn_repo_root_none_when_window_straddles_repos() {
+        let group = group_with(vec![
+            (test_pane("%1", "/src/app"), git_at("/src/app")),
+            (test_pane("%2", "/src/lib"), git_at("/src/lib")),
+        ]);
+        assert!(group.spawn_repo_root().is_none());
+    }
+
+    #[test]
+    fn spawn_repo_root_none_when_any_pane_is_outside_a_repo() {
+        let group = group_with(vec![
+            (test_pane("%1", "/src/app"), git_at("/src/app")),
+            (test_pane("%2", "/tmp"), PaneGitInfo::default()),
+        ]);
+        assert!(group.spawn_repo_root().is_none());
     }
 }
