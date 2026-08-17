@@ -26,9 +26,7 @@ On a narrow sidebar the row drops the git ref first and truncates the workflow n
 
 ## Which runs show up
 
-The sidebar collects the git repo root behind every pane it is tracking, turns each into an `owner/name` slug from its `origin` remote, and polls `gh run list` for it every 30 seconds. A run is a deploy when its workflow name contains `deploy`, case-insensitively — so `deploy` and `etp-databases-deploy` both count.
-
-Matched names can still be excluded. `deploy-mcp` is excluded out of the box: it ships a debug binary on every master commit, so it fires far more often than a release and would crowd the real deploys off the panel.
+The sidebar collects the git repo root behind every pane it is tracking, turns each into an `owner/name` slug from its `origin` remote, and polls `gh run list` for it every 30 seconds. A run is a deploy when its workflow name contains `deploy`, case-insensitively — so `deploy`, `deploy-mcp`, and `etp-databases-deploy` all count. Each row names its workflow, so which kind of deploy it is stays obvious.
 
 This needs the [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated. Without it the section simply stays empty; nothing else in the sidebar is affected.
 
@@ -40,7 +38,6 @@ The panel collapses to zero height whenever there is nothing to show, so the age
 | ----------------------------- | -------- | ------------------------------------------------------------------ |
 | `@sidebar_deploys`            | `on`     | Set `off` to hide the section entirely                             |
 | `@sidebar_deploy_match`       | `deploy` | Substring a workflow name must contain, case-insensitive           |
-| `@sidebar_deploy_exclude`     | `deploy-mcp` | Comma-separated substrings that disqualify a matched workflow; set empty to exclude nothing |
 | `@sidebar_deploy_recent_mins` | `60`     | Minutes a finished deploy stays listed after it ends               |
 | `@sidebar_deploy_max`         | `5`      | Maximum rows shown at once                                         |
 

@@ -67,10 +67,6 @@ pub struct DeployConfig {
     pub enabled: bool,
     /// Case-insensitive substring a run's workflow name must contain.
     pub workflow_match: String,
-    /// Case-insensitive substrings that disqualify a workflow even when it
-    /// matched. `deploy-mcp` ships a debug binary to zeus on every master
-    /// commit, so it fires constantly and would crowd out real releases.
-    pub workflow_exclude: Vec<String>,
     /// How far back a finished run stays on screen.
     pub recent_window: Duration,
     pub max_rows: usize,
@@ -81,7 +77,6 @@ impl Default for DeployConfig {
         Self {
             enabled: true,
             workflow_match: "deploy".into(),
-            workflow_exclude: vec!["deploy-mcp".into()],
             recent_window: Duration::from_secs(60 * 60),
             max_rows: 5,
         }
@@ -101,12 +96,6 @@ impl DeployConfig {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .unwrap_or(defaults.workflow_match);
-        // An explicitly empty value means "exclude nothing", so only an absent
-        // option falls back to the default list.
-        let workflow_exclude = opts
-            .get(crate::tmux::SIDEBAR_DEPLOY_EXCLUDE)
-            .map(|s| parse_exclude_list(s))
-            .unwrap_or(defaults.workflow_exclude);
         let recent_window = opts
             .get(crate::tmux::SIDEBAR_DEPLOY_RECENT_MINS)
             .and_then(|s| s.trim().parse::<u64>().ok())
@@ -119,31 +108,17 @@ impl DeployConfig {
         Self {
             enabled,
             workflow_match,
-            workflow_exclude,
             recent_window,
             max_rows,
         }
     }
 
-    /// Whether a workflow name counts as a deploy: it must contain the match
-    /// substring and none of the excluded ones.
+    /// Whether a workflow name counts as a deploy.
     fn accepts_workflow(&self, workflow: &str) -> bool {
-        let name = workflow.to_ascii_lowercase();
-        name.contains(&self.workflow_match.to_ascii_lowercase())
-            && !self
-                .workflow_exclude
-                .iter()
-                .any(|excluded| name.contains(&excluded.to_ascii_lowercase()))
+        workflow
+            .to_ascii_lowercase()
+            .contains(&self.workflow_match.to_ascii_lowercase())
     }
-}
-
-/// Comma-separated exclude list, e.g. `deploy-mcp, deploy-docs`.
-fn parse_exclude_list(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(|part| part.trim())
-        .filter(|part| !part.is_empty())
-        .map(str::to_string)
-        .collect()
 }
 
 /// Resolve `owner/name` for a repo root by reading its `origin` remote.
@@ -402,41 +377,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_runs_drops_excluded_workflows() {
-        let now = parse_rfc3339_epoch("2026-08-17T16:00:00Z");
-        let json = r#"[
-          {"status":"in_progress","conclusion":"","workflowName":"deploy-mcp","headBranch":"master",
-           "displayTitle":"mcp","createdAt":"2026-08-17T15:58:00Z","updatedAt":"2026-08-17T15:58:00Z","url":"u1"},
-          {"status":"in_progress","conclusion":"","workflowName":"deploy","headBranch":"v1.2.3",
-           "displayTitle":"live","createdAt":"2026-08-17T15:55:00Z","updatedAt":"2026-08-17T15:55:00Z","url":"u2"}
-        ]"#;
-
-        let runs = parse_runs(json, "hdtradeservices/listing", &config(), now);
-
-        let workflows: Vec<&str> = runs.iter().map(|r| r.workflow.as_str()).collect();
-        assert_eq!(
-            workflows,
-            vec!["deploy"],
-            "deploy-mcp is excluded by default"
-        );
-    }
-
-    #[test]
-    fn accepts_workflow_honors_an_empty_exclude_list() {
-        let mut config = DeployConfig::default();
-        assert!(!config.accepts_workflow("deploy-mcp"));
-
-        config.workflow_exclude.clear();
+    fn accepts_workflow_matches_a_substring_case_insensitively() {
+        let config = DeployConfig::default();
+        assert!(config.accepts_workflow("deploy"));
         assert!(config.accepts_workflow("deploy-mcp"));
-    }
-
-    #[test]
-    fn parse_exclude_list_splits_and_trims() {
-        assert_eq!(
-            parse_exclude_list(" deploy-mcp , deploy-docs ,,"),
-            vec!["deploy-mcp", "deploy-docs"]
-        );
-        assert!(parse_exclude_list("  ").is_empty());
+        assert!(config.accepts_workflow("etp-databases-Deploy"));
+        assert!(!config.accepts_workflow("go-ci"));
     }
 
     #[test]
@@ -506,16 +452,11 @@ mod tests {
             "15".to_string(),
         );
         opts.insert(crate::tmux::SIDEBAR_DEPLOY_MAX.to_string(), "3".to_string());
-        opts.insert(
-            crate::tmux::SIDEBAR_DEPLOY_EXCLUDE.to_string(),
-            "nightly,canary".to_string(),
-        );
 
         let config = DeployConfig::from_options(&opts);
 
         assert!(!config.enabled);
         assert_eq!(config.workflow_match, "release");
-        assert_eq!(config.workflow_exclude, vec!["nightly", "canary"]);
         assert_eq!(config.recent_window, Duration::from_secs(900));
         assert_eq!(config.max_rows, 3);
     }
@@ -525,20 +466,6 @@ mod tests {
         let config = DeployConfig::from_options(&HashMap::new());
         assert!(config.enabled);
         assert_eq!(config.workflow_match, "deploy");
-        assert_eq!(config.workflow_exclude, vec!["deploy-mcp"]);
         assert_eq!(config.max_rows, 5);
-    }
-
-    #[test]
-    fn config_from_options_treats_an_empty_exclude_as_exclude_nothing() {
-        let mut opts = HashMap::new();
-        opts.insert(
-            crate::tmux::SIDEBAR_DEPLOY_EXCLUDE.to_string(),
-            "".to_string(),
-        );
-
-        let config = DeployConfig::from_options(&opts);
-
-        assert!(config.workflow_exclude.is_empty());
     }
 }
