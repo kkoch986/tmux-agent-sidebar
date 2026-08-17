@@ -19,6 +19,10 @@ Most options must be set **before** loading the plugin in your `tmux.conf`. Colo
 | `@sidebar_notifications`         | `on`    | Master switch for desktop notifications                                                 |
 | `@sidebar_notifications_events`  | unset   | Restrict events — see [Notifications](/tmux-agent-sidebar/features/notifications/)       |
 | `@sidebar_pet`                  | `off`   | Show the animated pet in a 5-row band above the bottom panel                           |
+| `@sidebar_deploys`               | `on`    | Show the Deploys section — GitHub Actions runs for the repos your panes sit in           |
+| `@sidebar_deploy_match`          | `deploy` | Case-insensitive substring a workflow name must contain to count as a deploy            |
+| `@sidebar_deploy_recent_mins`    | `60`    | Minutes a finished deploy stays listed after it ends                                     |
+| `@sidebar_deploy_max`            | `5`     | Maximum deploy rows shown at once                                                        |
 
 ## Worktree spawn defaults
 

@@ -93,6 +93,14 @@ pub const SIDEBAR_PET: &str = "@sidebar_pet";
 pub const SIDEBAR_NOTIFICATIONS: &str = "@sidebar_notifications";
 pub const SIDEBAR_NOTIFICATIONS_EVENTS: &str = "@sidebar_notifications_events";
 
+/// Deploys section: `on`/`off`, the case-insensitive substring a GitHub Actions
+/// workflow name must contain to count as a deploy, how many minutes a finished
+/// run stays listed, and the row cap.
+pub const SIDEBAR_DEPLOYS: &str = "@sidebar_deploys";
+pub const SIDEBAR_DEPLOY_MATCH: &str = "@sidebar_deploy_match";
+pub const SIDEBAR_DEPLOY_RECENT_MINS: &str = "@sidebar_deploy_recent_mins";
+pub const SIDEBAR_DEPLOY_MAX: &str = "@sidebar_deploy_max";
+
 pub const SIDEBAR_COLOR_ACCENT: &str = "@sidebar_color_accent";
 pub const SIDEBAR_COLOR_BORDER: &str = "@sidebar_color_border";
 pub const SIDEBAR_COLOR_ALL: &str = "@sidebar_color_all";

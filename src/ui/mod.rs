@@ -1,5 +1,6 @@
 pub mod bottom;
 pub mod colors;
+pub mod deploys;
 pub mod icons;
 pub mod notices;
 pub mod panes;
@@ -64,26 +65,40 @@ pub fn draw(frame: &mut Frame, state: &mut AppState) {
         1
     };
 
+    // The pane list and the Deploys section share whatever the divider and the
+    // bottom panel leave behind, so size Deploys against that budget.
+    let shared_h = area
+        .height
+        .saturating_sub(if bot_h > 0 { divider_h + bot_h } else { 0 });
+    let deploy_h = deploys::deploy_panel_height(state, shared_h);
+
+    let mut constraints = vec![Constraint::Min(1)];
+    if deploy_h > 0 {
+        constraints.push(Constraint::Length(deploy_h));
+    }
+    if bot_h > 0 {
+        constraints.push(Constraint::Length(divider_h));
+        constraints.push(Constraint::Length(bot_h));
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(if bot_h > 0 {
-            vec![
-                Constraint::Min(1),
-                Constraint::Length(divider_h),
-                Constraint::Length(bot_h),
-            ]
-        } else {
-            vec![Constraint::Min(1)]
-        })
+        .constraints(constraints)
         .split(area);
 
     panes::draw_agents(frame, state, chunks[0]);
 
-    if bot_h > 0 && chunks.len() > 2 {
-        bottom::draw_bottom(frame, state, chunks[2]);
+    let mut next = 1;
+    if deploy_h > 0 {
+        deploys::draw_deploys(frame, state, chunks[next]);
+        next += 1;
+    }
+
+    if bot_h > 0 && chunks.len() > next + 1 {
+        bottom::draw_bottom(frame, state, chunks[next + 1]);
         if state.pet_enabled {
             let running_count = state.running_count();
-            pet::draw_pet(frame, state, chunks[1], running_count);
+            pet::draw_pet(frame, state, chunks[next], running_count);
         }
     }
 }

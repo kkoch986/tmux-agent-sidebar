@@ -4,6 +4,7 @@ use crate::ui::colors::ColorTheme;
 use crate::ui::icons::StatusIcons;
 
 mod activity;
+mod deploys;
 mod filter;
 mod focus;
 mod global;
@@ -134,6 +135,11 @@ pub struct AppState {
     /// Whether the pet animation is drawn and ticked. Loaded once at startup
     /// from the `@sidebar_pet` tmux option. Defaults to `false`.
     pub pet_enabled: bool,
+    /// GitHub Actions deploy runs for the repos the sidebar has panes in,
+    /// already filtered, sorted and capped by the deploy poll thread. Empty
+    /// while nothing is deploying, or when `@sidebar_deploys` is off — the
+    /// Deploys section takes no height in that case.
+    pub deploys: Vec<crate::deploy::DeployRun>,
 }
 
 impl AppState {
@@ -181,6 +187,7 @@ impl AppState {
             bottom_panel_height: crate::ui::BOTTOM_PANEL_HEIGHT,
             sessions: SessionNamesState::new(),
             pet_enabled: false,
+            deploys: Vec::new(),
         };
         crate::state::pet::reseed_pet_idle_motion(&mut state);
         state

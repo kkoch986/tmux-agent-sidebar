@@ -38,6 +38,8 @@ pub fn run(
         git_rx,
         session_rx,
         version_rx,
+        deploy_rx,
+        deploy_repos,
         git_tab_active,
     } = workers;
 
@@ -102,6 +104,9 @@ pub fn run(
                 window_inactive_count = window_inactive_count.saturating_add(1);
             }
             git_tab_active.store(state.bottom_tab == BottomTab::GitStatus, Ordering::Relaxed);
+            if let Ok(mut shared) = deploy_repos.lock() {
+                *shared = state.repo_roots();
+            }
             last_refresh = std::time::Instant::now();
         }
 
@@ -118,6 +123,11 @@ pub fn run(
 
         if let Ok(notice) = version_rx.try_recv() {
             state.version_notice = Some(notice);
+            needs_redraw = true;
+        }
+
+        if let Ok(runs) = deploy_rx.try_recv() {
+            state.deploys = runs;
             needs_redraw = true;
         }
 

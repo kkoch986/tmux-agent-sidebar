@@ -1,9 +1,10 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::deploy::{self, DeployConfig, DeployRun, SlugCache};
 use crate::git::{self, GitData};
 use crate::session;
 use crate::state::{AppState, BottomTab};
@@ -16,6 +17,10 @@ pub(super) struct Workers {
     pub git_rx: Receiver<GitData>,
     pub session_rx: Receiver<HashMap<String, String>>,
     pub version_rx: Receiver<UpdateNotice>,
+    pub deploy_rx: Receiver<Vec<DeployRun>>,
+    /// Repo roots the deploy thread should poll. The main loop overwrites this
+    /// after each refresh; the thread reads it at the top of every cycle.
+    pub deploy_repos: Arc<Mutex<Vec<String>>>,
     pub git_tab_active: Arc<AtomicBool>,
 }
 
@@ -25,6 +30,9 @@ pub(super) fn spawn(state: &AppState) -> Workers {
     let (git_tx, git_rx) = mpsc::channel::<GitData>();
     let (session_tx, session_rx) = mpsc::channel::<HashMap<String, String>>();
     let (version_tx, version_rx) = mpsc::channel::<UpdateNotice>();
+    let (deploy_tx, deploy_rx) = mpsc::channel::<Vec<DeployRun>>();
+    let deploy_repos = Arc::new(Mutex::new(state.repo_roots()));
+    let deploy_repos_clone = Arc::clone(&deploy_repos);
     let tmux_pane_clone = state.tmux_pane.clone();
     let git_tab_active = Arc::new(AtomicBool::new(state.bottom_tab == BottomTab::GitStatus));
     let git_tab_flag = Arc::clone(&git_tab_active);
@@ -39,13 +47,65 @@ pub(super) fn spawn(state: &AppState) -> Workers {
             let _ = version_tx.send(notice);
         }
     });
+    std::thread::spawn(move || {
+        deploy_poll_loop(&deploy_tx, &deploy_repos_clone);
+    });
 
     Workers {
         git_rx,
         session_rx,
         version_rx,
+        deploy_rx,
+        deploy_repos,
         git_tab_active,
     }
+}
+
+/// Deploy polling thread. Every [`DEPLOY_POLL_INTERVAL`] it re-reads the
+/// tmux options (so toggling `@sidebar_deploys` takes effect without a
+/// restart) and asks GitHub for each repo's deploy runs. Every hop here is a
+/// subprocess or a network call, which is exactly why none of it may run on
+/// the render thread.
+pub(super) fn deploy_poll_loop(tx: &mpsc::Sender<Vec<DeployRun>>, repos: &Mutex<Vec<String>>) {
+    const DEPLOY_POLL_INTERVAL: Duration = Duration::from_secs(30);
+    let mut slugs = SlugCache::default();
+    loop {
+        let config = DeployConfig::from_options(&tmux::get_all_global_options());
+        let roots = repos.lock().map(|r| r.clone()).unwrap_or_default();
+        let runs = if config.enabled {
+            collect_deploy_runs(&roots, &mut slugs, &config)
+        } else {
+            Vec::new()
+        };
+        if tx.send(runs).is_err() {
+            return;
+        }
+        std::thread::sleep(DEPLOY_POLL_INTERVAL);
+    }
+}
+
+/// Merge the deploy runs of every repo into one capped, sorted list.
+/// Worktrees of the same repo resolve to a single slug, so poll it once.
+fn collect_deploy_runs(
+    repo_roots: &[String],
+    slugs: &mut SlugCache,
+    config: &DeployConfig,
+) -> Vec<DeployRun> {
+    let now = crate::time::now_epoch_secs();
+    let mut polled: HashSet<String> = HashSet::new();
+    let mut runs = Vec::new();
+    for root in repo_roots {
+        let Some(slug) = slugs.resolve(root) else {
+            continue;
+        };
+        if !polled.insert(slug.clone()) {
+            continue;
+        }
+        if let Some(repo_runs) = deploy::fetch_repo_runs(&slug, config, now) {
+            runs.extend(repo_runs);
+        }
+    }
+    deploy::sort_and_cap(runs, config.max_rows)
 }
 
 /// Session name polling thread. Scans `~/.claude/sessions/*.json` every 10
