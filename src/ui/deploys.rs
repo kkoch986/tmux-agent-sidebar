@@ -94,8 +94,10 @@ pub fn draw_deploys(frame: &mut Frame, state: &AppState, area: Rect) {
     );
 }
 
-/// `● listing v1.2.3          2m` — icon and repo on the left, age on the
-/// right, the git ref taking whatever room is left in between.
+/// `● listing deploy v1.2.3        2m` — icon, repo and workflow on the left,
+/// age pinned right, the git ref taking whatever room is left in between. On a
+/// narrow sidebar the ref goes first and the workflow name second, so the row
+/// never loses the repo or the age.
 fn run_line<'a>(run: &'a DeployRun, state: &AppState, width: usize) -> Line<'a> {
     let theme = &state.theme;
     let (icon, color) = match run.status {
@@ -111,29 +113,36 @@ fn run_line<'a>(run: &'a DeployRun, state: &AppState, width: usize) -> Line<'a> 
 
     let age = format_age(run.elapsed_secs(state.now));
     let repo = run.repo.as_str();
-    // icon + space + repo + space + … + space + age
-    let ref_room =
+    // icon + space + repo + space + <middle> + gap(>=1) + age
+    let middle_room =
         width.saturating_sub(display_width(icon) + display_width(repo) + display_width(&age) + 3);
-    let git_ref = truncate_to_width(&run.git_ref, ref_room);
-    let gap = width
-        .saturating_sub(
-            display_width(icon)
-                + display_width(repo)
-                + display_width(&git_ref)
-                + display_width(&age)
-                + 2,
-        )
-        .max(1);
+    let workflow = truncate_to_width(&run.workflow, middle_room);
+    // Only keep the ref when something more than an ellipsis fits.
+    let ref_room = middle_room.saturating_sub(display_width(&workflow) + 1);
+    let git_ref = if ref_room > 1 {
+        truncate_to_width(&run.git_ref, ref_room)
+    } else {
+        String::new()
+    };
 
-    Line::from(vec![
+    let mut spans = vec![
         Span::styled(icon, Style::default().fg(color)),
         Span::raw(" "),
         Span::styled(repo, Style::default().fg(theme.text_active)),
         Span::raw(" "),
-        Span::styled(git_ref, Style::default().fg(theme.branch)),
-        Span::raw(" ".repeat(gap)),
-        Span::styled(age, Style::default().fg(theme.text_muted)),
-    ])
+        Span::styled(workflow.clone(), Style::default().fg(theme.text_muted)),
+    ];
+    let mut used = display_width(icon) + display_width(repo) + display_width(&workflow) + 2;
+    if !git_ref.is_empty() {
+        used += display_width(&git_ref) + 1;
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(git_ref, Style::default().fg(theme.branch)));
+    }
+
+    let gap = width.saturating_sub(used + display_width(&age)).max(1);
+    spans.push(Span::raw(" ".repeat(gap)));
+    spans.push(Span::styled(age, Style::default().fg(theme.text_muted)));
+    Line::from(spans)
 }
 
 /// Compact age: `42s`, `7m`, `3h`, `2d`.
@@ -192,8 +201,27 @@ mod tests {
         let rendered: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
 
         assert_eq!(display_width(&rendered), 30, "{rendered:?}");
-        assert!(rendered.starts_with("● listing v1.2.3"), "{rendered:?}");
+        assert!(
+            rendered.starts_with("● listing deploy v1.2.3"),
+            "{rendered:?}"
+        );
         assert!(rendered.ends_with("6m"), "active run counts up to now");
+    }
+
+    #[test]
+    fn run_line_keeps_repo_workflow_and_age_when_the_ref_cannot_fit() {
+        let mut state = AppState::new("%99".into());
+        state.now = 1_100;
+        let mut deploy = run(DeployStatus::Success);
+        deploy.workflow = "deploy".into();
+        deploy.git_ref = "r2026.08.17.01".into();
+
+        let line = run_line(&deploy, &state, 20);
+        let rendered: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+
+        assert!(display_width(&rendered) <= 20, "{rendered:?}");
+        assert!(rendered.starts_with("✓ listing deploy"), "{rendered:?}");
+        assert!(rendered.ends_with("1m"), "{rendered:?}");
     }
 
     #[test]

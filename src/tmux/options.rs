@@ -98,6 +98,7 @@ pub const SIDEBAR_NOTIFICATIONS_EVENTS: &str = "@sidebar_notifications_events";
 /// run stays listed, and the row cap.
 pub const SIDEBAR_DEPLOYS: &str = "@sidebar_deploys";
 pub const SIDEBAR_DEPLOY_MATCH: &str = "@sidebar_deploy_match";
+pub const SIDEBAR_DEPLOY_EXCLUDE: &str = "@sidebar_deploy_exclude";
 pub const SIDEBAR_DEPLOY_RECENT_MINS: &str = "@sidebar_deploy_recent_mins";
 pub const SIDEBAR_DEPLOY_MAX: &str = "@sidebar_deploy_max";
 
