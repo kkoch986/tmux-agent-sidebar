@@ -1,8 +1,17 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::process::Command;
+use std::io::Read;
+use std::process::{Child, Command, Stdio};
+use std::sync::mpsc;
+use std::time::Duration;
 
 use crate::process::{ProcessSnapshot, command_basename};
 use crate::tmux::SessionInfo;
+
+/// Deadline for the `lsof` port scan. `lsof` `stat()`s every open fd on the
+/// box, so a single wedged FUSE mount (dropped sshfs, keybase, gcsfuse) parks
+/// it in the kernel forever. This scan runs on the render thread, so an
+/// unbounded wait freezes the sidebar into a blank pane.
+const LSOF_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Default, Clone)]
 pub struct PaneProcessSnapshot {
@@ -11,13 +20,151 @@ pub struct PaneProcessSnapshot {
     pub live_agent_panes: HashSet<String>,
 }
 
-fn run_command(cmd: &str, args: &[&str]) -> Option<String> {
-    let output = Command::new(cmd).args(args).output().ok()?;
-    if output.status.success() {
-        Some(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        None
+/// Run `cmd` and return its stdout, giving up after `timeout`.
+///
+/// stdout is drained on a helper thread rather than polled with `try_wait`, so
+/// a child that fills the 64K pipe buffer can still finish. On timeout the
+/// child is killed and reaped off-thread: a process blocked in an unresponsive
+/// FUSE request may not die promptly, and waiting for it here would recreate
+/// the very stall the deadline exists to prevent.
+fn run_command_with_timeout(cmd: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    let mut child = Command::new(cmd)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdout = child.stdout.take()?;
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buf = String::new();
+        let _ = tx.send(stdout.read_to_string(&mut buf).ok().map(|_| buf));
+    });
+
+    match rx.recv_timeout(timeout) {
+        // Partial output counts: `lsof` exits non-zero whenever any single fd
+        // was unreadable, which says nothing about the sockets it did report.
+        Ok(Some(out)) => {
+            reap_detached(child);
+            Some(out)
+        }
+        Ok(None) => {
+            reap_detached(child);
+            None
+        }
+        Err(_) => {
+            let _ = child.kill();
+            reap_detached(child);
+            None
+        }
     }
+}
+
+fn reap_detached(mut child: Child) {
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+}
+
+/// Listening `(pid, port)` pairs for the given pids.
+///
+/// On Linux this reads `/proc` directly and never shells out: `/proc/net/tcp`
+/// gives inode → port for sockets in LISTEN, and `readlink` over each pid's fds
+/// maps those inodes back to processes. `readlink` is resolved by procfs alone,
+/// so — unlike `lsof`'s `stat()` — an fd pointing into a hung FUSE mount cannot
+/// block the scan. `lsof` stays as the fallback for when `/proc` is unreadable.
+#[cfg(target_os = "linux")]
+fn listening_ports(pids: &HashSet<u32>) -> Vec<(u32, u16)> {
+    match proc_listening_ports(pids) {
+        Some(ports) => ports,
+        None => lsof_listening_ports(),
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn listening_ports(_pids: &HashSet<u32>) -> Vec<(u32, u16)> {
+    lsof_listening_ports()
+}
+
+fn lsof_listening_ports() -> Vec<(u32, u16)> {
+    run_command_with_timeout(
+        "lsof",
+        &["-iTCP", "-sTCP:LISTEN", "-nP", "-F", "pn"],
+        LSOF_TIMEOUT,
+    )
+    .map(|output| parse_lsof_listening_ports(&output))
+    .unwrap_or_default()
+}
+
+/// `None` when neither `/proc/net/tcp` nor `/proc/net/tcp6` could be read, so
+/// the caller can fall back. An empty vec means procfs was readable and no
+/// tracked pid is listening — a real answer, not a failure.
+#[cfg(target_os = "linux")]
+fn proc_listening_ports(pids: &HashSet<u32>) -> Option<Vec<(u32, u16)>> {
+    let mut inode_ports: HashMap<u64, u16> = HashMap::new();
+    let mut readable = false;
+    for path in ["/proc/net/tcp", "/proc/net/tcp6"] {
+        if let Ok(text) = std::fs::read_to_string(path) {
+            readable = true;
+            inode_ports.extend(parse_proc_net_listeners(&text));
+        }
+    }
+    if !readable {
+        return None;
+    }
+
+    let mut out = Vec::new();
+    for &pid in pids {
+        let Ok(entries) = std::fs::read_dir(format!("/proc/{pid}/fd")) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(target) = std::fs::read_link(entry.path()) else {
+                continue;
+            };
+            let Some(inode) = parse_socket_inode(&target.to_string_lossy()) else {
+                continue;
+            };
+            if let Some(&port) = inode_ports.get(&inode) {
+                out.push((pid, port));
+            }
+        }
+    }
+    Some(out)
+}
+
+/// Parse `inode → port` for LISTEN sockets out of `/proc/net/tcp[6]`.
+/// Columns are `sl local_address rem_address st … inode`, with `local_address`
+/// hex-encoded as `<addr>:<port>` and `st` = `0A` for `TCP_LISTEN`.
+#[cfg(target_os = "linux")]
+fn parse_proc_net_listeners(text: &str) -> Vec<(u64, u16)> {
+    let mut out = Vec::new();
+    for line in text.lines().skip(1) {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() < 10 || fields[3] != "0A" {
+            continue;
+        }
+        let Some((_, hex_port)) = fields[1].rsplit_once(':') else {
+            continue;
+        };
+        let (Ok(port), Ok(inode)) = (u16::from_str_radix(hex_port, 16), fields[9].parse::<u64>())
+        else {
+            continue;
+        };
+        out.push((inode, port));
+    }
+    out
+}
+
+/// `"socket:[12345]"` → `12345`. Any other fd target yields `None`.
+#[cfg(target_os = "linux")]
+fn parse_socket_inode(target: &str) -> Option<u64> {
+    target
+        .strip_prefix("socket:[")?
+        .strip_suffix(']')?
+        .parse()
+        .ok()
 }
 
 fn parse_pane_pids(sessions: &[SessionInfo]) -> HashMap<String, u32> {
@@ -160,8 +307,7 @@ pub(crate) fn scan_session_process_snapshot(
         }
     }
 
-    let lsof_output = run_command("lsof", &["-iTCP", "-sTCP:LISTEN", "-nP", "-F", "pn"])?;
-    let listening = parse_lsof_listening_ports(&lsof_output);
+    let listening = listening_ports(&pid_to_panes.keys().copied().collect());
 
     let mut ports_by_pane: HashMap<String, BTreeSet<u16>> = HashMap::new();
     for (pid, port) in listening {
@@ -211,6 +357,37 @@ mod tests {
         assert_eq!(
             parse_lsof_listening_ports(sample),
             vec![(123, 3000), (456, 5173)]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parse_proc_net_listeners_keeps_only_listen_rows() {
+        let sample = concat!(
+            "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n",
+            "   0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 93214943 1\n",
+            "   1: 0100007F:C350 0100007F:1F90 01 00000000:00000000 00:00000000 00000000  1000        0 93214944 1\n",
+        );
+        assert_eq!(parse_proc_net_listeners(sample), vec![(93214943, 8080)]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parse_socket_inode_only_matches_socket_targets() {
+        assert_eq!(parse_socket_inode("socket:[12345]"), Some(12345));
+        assert_eq!(parse_socket_inode("/keybase"), None);
+        assert_eq!(parse_socket_inode("pipe:[999]"), None);
+    }
+
+    #[test]
+    fn run_command_with_timeout_kills_a_hanging_child() {
+        let start = std::time::Instant::now();
+        let out = run_command_with_timeout("sleep", &["30"], Duration::from_millis(200));
+        assert!(out.is_none());
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "the deadline must cut the wait short, took {:?}",
+            start.elapsed()
         );
     }
 
