@@ -1,8 +1,7 @@
 //! The Usage section: one row per Claude account on the machine, showing
 //! how much of its 5-hour and weekly limit is spent. A maxed-out account is
-//! drawn in red with a line per maxed limit, and a window close to its limit
-//! adds a line saying when it resets. Collapses to zero height until the
-//! first look-up lands.
+//! drawn in red with a line per maxed limit, and each window shows how long
+//! until it resets. Collapses to zero height until the first look-up lands.
 
 use ratatui::{
     Frame,
@@ -19,7 +18,7 @@ use crate::ui::text::{display_width, truncate_to_width};
 use crate::usage::{AccountUsage, UsageWindow};
 
 const CHROME_HEIGHT: u16 = 2;
-/// From this share of a limit on, the bar turns amber and the reset time shows.
+/// From this share of a limit on, the bar turns amber.
 const WARN_PCT: f64 = 70.0;
 const DANGER_PCT: f64 = 90.0;
 
@@ -74,17 +73,15 @@ pub fn draw_usage(frame: &mut Frame, state: &AppState, area: Rect) {
     let capacity = area.height.saturating_sub(CHROME_HEIGHT) as usize;
     let mut body: Vec<Line<'static>> = Vec::new();
     for usage in &state.usage {
-        body.push(account_line(usage, label_width, inner, theme));
-        for (note, is_maxed) in notes(usage, state.now) {
+        body.push(account_line(usage, label_width, inner, state.now, theme));
+        for note in notes(usage, state.now) {
             let text = truncate_to_width(&format!(" {:label_width$} {note}", ""), inner);
-            let style = if is_maxed {
+            body.push(Line::from(Span::styled(
+                text,
                 Style::default()
                     .fg(theme.status_error)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.status_waiting)
-            };
-            body.push(Line::from(Span::styled(text, style)));
+                    .add_modifier(Modifier::BOLD),
+            )));
         }
     }
     for line in body.into_iter().take(capacity) {
@@ -102,12 +99,13 @@ pub fn draw_usage(frame: &mut Frame, state: &AppState, area: Rect) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
-/// ` ken  5h ███░░░░░  12%  wk ████░░░░  38%` — bars share whatever width
-/// the label and percentages leave.
+/// ` ken 5h ███░░░  12% 2h10m  wk ████░░  38% 5d20h` — bars share whatever
+/// width the label, percentages and time left leave.
 fn account_line(
     usage: &AccountUsage,
     label_width: usize,
     inner: usize,
+    now: u64,
     theme: &ColorTheme,
 ) -> Line<'static> {
     let label = truncate_to_width(&usage.account, label_width);
@@ -134,15 +132,28 @@ fn account_line(
         ));
         return Line::from(spans);
     }
-    // Each window is "5h " + bar + " " + "100%"; two windows, a 2-column gap.
-    const WINDOW_CHROME: usize = 8;
+    // Each window is "5h " + bar + " 100%" + " " + time left (up to 6
+    // columns, e.g. `23h59m`); two windows, a 2-column gap.
+    const WINDOW_CHROME: usize = 15;
     let bar = inner
         .saturating_sub(label_width + 2 + 2 + 2 * WINDOW_CHROME)
         .saturating_div(2)
-        .clamp(2, 20);
-    spans.extend(window_spans("5h", usage.five_hour.as_ref(), bar, theme));
+        .max(2);
+    spans.extend(window_spans(
+        "5h",
+        usage.five_hour.as_ref(),
+        bar,
+        now,
+        theme,
+    ));
     spans.push(Span::raw("  "));
-    spans.extend(window_spans("wk", usage.seven_day.as_ref(), bar, theme));
+    spans.extend(window_spans(
+        "wk",
+        usage.seven_day.as_ref(),
+        bar,
+        now,
+        theme,
+    ));
     Line::from(spans)
 }
 
@@ -150,15 +161,20 @@ fn window_spans(
     name: &str,
     window: Option<&UsageWindow>,
     bar: usize,
+    now: u64,
     theme: &ColorTheme,
 ) -> Vec<Span<'static>> {
     let muted = Style::default().fg(theme.text_inactive);
     let Some(window) = window else {
         return vec![
             Span::styled(format!("{name} "), muted),
-            Span::styled(format!("{:bar$}    -", ""), muted),
+            Span::styled(format!("{:bar$}    - {:6}", "", ""), muted),
         ];
     };
+    let left = window
+        .resets_at
+        .map(|at| duration_label(at.saturating_sub(now)))
+        .unwrap_or_default();
     let pct = window.used_pct.clamp(0.0, 100.0);
     let filled = ((pct / 100.0) * bar as f64).round() as usize;
     let color = level_color(pct, theme);
@@ -173,6 +189,7 @@ fn window_spans(
             format!(" {:>3}%", pct.round() as u32),
             Style::default().fg(color),
         ),
+        Span::styled(format!(" {left:<6}"), Style::default().fg(theme.text_muted)),
     ]
 }
 
@@ -186,35 +203,21 @@ fn level_color(pct: f64, theme: &ColorTheme) -> Color {
     }
 }
 
-/// Lines under an account: `✕ 5h maxed · resets in 2h10m` for each maxed
-/// limit (flagged `true`), then `5h resets in 1h12m` for each window at or
-/// past [`WARN_PCT`] that is not maxed.
-fn notes(usage: &AccountUsage, now: u64) -> Vec<(String, bool)> {
-    let resets = |at: Option<u64>| match at {
-        Some(at) => format!(" · resets in {}", duration_label(at.saturating_sub(now))),
-        None => String::new(),
-    };
-    let mut out: Vec<(String, bool)> = usage
+/// One line per maxed limit: `✕ 5h maxed · resets in 2h10m`. Per-model
+/// caps such as `Opus weekly` have no bar of their own, so this line is the
+/// only place they show.
+fn notes(usage: &AccountUsage, now: u64) -> Vec<String> {
+    usage
         .maxed
         .iter()
-        .map(|m| (format!("✕ {} maxed{}", m.label, resets(m.resets_at)), true))
-        .collect();
-    for (name, window) in [("5h", &usage.five_hour), ("wk", &usage.seven_day)] {
-        let Some(window) = window else { continue };
-        if window.used_pct < WARN_PCT || window.used_pct >= 100.0 {
-            continue;
-        }
-        if let Some(at) = window.resets_at {
-            out.push((
-                format!(
-                    "{name} resets in {}",
-                    duration_label(at.saturating_sub(now))
-                ),
-                false,
-            ));
-        }
-    }
-    out
+        .map(|m| {
+            let resets = m
+                .resets_at
+                .map(|at| format!(" · resets in {}", duration_label(at.saturating_sub(now))))
+                .unwrap_or_default();
+            format!("✕ {} maxed{resets}", m.label)
+        })
+        .collect()
 }
 
 fn duration_label(secs: u64) -> String {
@@ -294,14 +297,25 @@ mod tests {
         ];
         insta::assert_snapshot!(render(&mut state, 44), @"
         ╭ Usage · 1 maxed ─────────────────────────╮
-        │ ken 5h █░░░░░░░░  12%  wk ███░░░░░░  38% │
-        │ k1  5h ███████░░  81%  wk ██████░░░  64% │
-        │     5h resets in 1h12m                   │
+        │ ken 5h ░░  12% 1h12m   wk █░  38% 2d1h   │
+        │ k1  5h ██  81% 1h12m   wk █░  64% 2d1h   │
         │ k0  token expired                        │
-        │ k2  5h █████████ 100%  wk █████░░░░  55% │
+        │ k2  5h ██ 100% 1h12m   wk █░  55% 2d1h   │
         │     ✕ 5h maxed · resets in 2h10m         │
         │     ✕ Opus weekly maxed · resets in 3d0h │
         ╰──────────────────────────────────────────╯
+        ");
+    }
+
+    #[test]
+    fn snapshot_bars_grow_with_the_sidebar() {
+        let mut state = AppState::new("%0".into());
+        state.now = 1000;
+        state.usage = vec![usage("ken", 50.0, 25.0)];
+        insta::assert_snapshot!(render(&mut state, 84), @"
+        ╭ Usage ───────────────────────────────────────────────────────────────────────────╮
+        │ ken 5h ███████████░░░░░░░░░░░  50% 1h12m   wk ██████░░░░░░░░░░░░░░░░  25% 2d1h   │
+        ╰──────────────────────────────────────────────────────────────────────────────────╯
         ");
     }
 

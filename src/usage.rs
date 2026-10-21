@@ -4,8 +4,9 @@
 //! with the token each account already keeps in
 //! `<config dir>/.credentials.json`.
 
+use std::collections::HashMap;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use serde_json::Value;
@@ -53,6 +54,7 @@ pub struct AccountRef {
 }
 
 pub const TOKEN_EXPIRED: &str = "token expired";
+pub const RATE_LIMITED: &str = "rate limited";
 
 /// Look an account up. With `refresh` set, an expired token is renewed
 /// through `claude auth status` first: an account nobody has run for a
@@ -203,7 +205,10 @@ fn fetch_body(config_dir: &str, now: u64) -> Result<String, String> {
     let text = String::from_utf8_lossy(&output.stdout);
     let (body, code) = text.rsplit_once('\n').unwrap_or((&text, ""));
     if code.trim() != "200" {
-        return Err(format!("http {}", code.trim()));
+        return Err(match code.trim() {
+            "429" => RATE_LIMITED.to_string(),
+            other => format!("http {other}"),
+        });
     }
     Ok(body.to_string())
 }
@@ -297,6 +302,196 @@ fn parse_rfc3339_utc(s: &str) -> Option<u64> {
     u64::try_from(days * 86_400 + hh * 3600 + mm * 60 + ss).ok()
 }
 
+// ── Shared cache ──────────────────────────────────────────────────────
+//
+// Every tmux window runs its own sidebar process. Without a shared cache
+// each one would query every account on its own schedule, and the endpoint
+// answers that many requests with 429. Whichever process finds the cache
+// stale takes the lock and refreshes it; the rest read the file.
+
+/// When usage was last looked up, and each account's latest good reading
+/// (or its error, when it never had one), keyed by config dir.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct UsageCache {
+    pub written_at: u64,
+    pub accounts: HashMap<String, AccountUsage>,
+}
+
+fn cache_dir() -> PathBuf {
+    // SAFETY: getuid has no preconditions and cannot fail.
+    let uid = unsafe { libc::getuid() };
+    std::env::temp_dir().join(format!("tmux-agent-sidebar-{uid}"))
+}
+
+pub fn read_cache() -> UsageCache {
+    read_cache_from(&cache_dir())
+}
+
+fn read_cache_from(dir: &Path) -> UsageCache {
+    let Some(json) = std::fs::read_to_string(dir.join("usage.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+    else {
+        return UsageCache::default();
+    };
+    let accounts = json["accounts"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(dir, v)| (dir.clone(), usage_from_json(v)))
+        .collect();
+    UsageCache {
+        written_at: json["written_at"].as_u64().unwrap_or(0),
+        accounts,
+    }
+}
+
+fn write_cache_to(dir: &Path, cache: &UsageCache) {
+    let accounts: serde_json::Map<String, Value> = cache
+        .accounts
+        .iter()
+        .map(|(dir, u)| (dir.clone(), usage_to_json(u)))
+        .collect();
+    let body = serde_json::json!({ "written_at": cache.written_at, "accounts": accounts });
+    let _ = std::fs::create_dir_all(dir);
+    let tmp = dir.join("usage.json.tmp");
+    if std::fs::write(&tmp, body.to_string()).is_ok() {
+        let _ = std::fs::rename(tmp, dir.join("usage.json"));
+    }
+}
+
+/// Holds the refresh lock; removing the file on drop releases it.
+pub struct CacheLock(PathBuf);
+
+impl Drop for CacheLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+fn try_lock_in(dir: &Path) -> Option<CacheLock> {
+    // A refresh takes seconds; a lock older than this is a crashed holder's.
+    const STALE_LOCK: std::time::Duration = std::time::Duration::from_secs(90);
+    let _ = std::fs::create_dir_all(dir);
+    let path = dir.join("usage.lock");
+    let stale = std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age > STALE_LOCK);
+    if stale {
+        let _ = std::fs::remove_file(&path);
+    }
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .ok()
+        .map(|_| CacheLock(path))
+}
+
+/// Refresh the shared cache if it is older than `max_age` or misses an
+/// account, unless another sidebar holds the lock. Returns the cache as it
+/// stands afterwards. `fetch` looks one account up.
+pub fn refresh_shared_cache(
+    accounts: &[AccountRef],
+    now: u64,
+    max_age: u64,
+    fetch: impl FnMut(&AccountRef) -> AccountUsage,
+) -> UsageCache {
+    refresh_cache_in(&cache_dir(), accounts, now, max_age, fetch)
+}
+
+fn refresh_cache_in(
+    dir: &Path,
+    accounts: &[AccountRef],
+    now: u64,
+    max_age: u64,
+    mut fetch: impl FnMut(&AccountRef) -> AccountUsage,
+) -> UsageCache {
+    let cache = read_cache_from(dir);
+    let fresh = now.saturating_sub(cache.written_at) < max_age
+        && accounts
+            .iter()
+            .all(|a| cache.accounts.contains_key(&a.config_dir));
+    if fresh {
+        return cache;
+    }
+    let Some(_lock) = try_lock_in(dir) else {
+        return cache;
+    };
+    let mut next = UsageCache {
+        written_at: now,
+        accounts: HashMap::new(),
+    };
+    for account in accounts {
+        let fetched = fetch(account);
+        // A blip (rate limit, network) keeps the last good reading rather
+        // than blanking the row; only a real answer replaces it.
+        let keep_previous = fetched.error.as_deref().is_some_and(is_transient)
+            && cache
+                .accounts
+                .get(&account.config_dir)
+                .is_some_and(|prev| prev.error.is_none());
+        let entry = if keep_previous {
+            cache.accounts[&account.config_dir].clone()
+        } else {
+            fetched
+        };
+        next.accounts.insert(account.config_dir.clone(), entry);
+    }
+    write_cache_to(dir, &next);
+    next
+}
+
+fn is_transient(error: &str) -> bool {
+    error == RATE_LIMITED || error == "network error" || error.starts_with("http 5")
+}
+
+fn window_to_json(w: &Option<UsageWindow>) -> Value {
+    match w {
+        Some(w) => serde_json::json!({ "used_pct": w.used_pct, "resets_at": w.resets_at }),
+        None => Value::Null,
+    }
+}
+
+fn window_from_json(v: &Value) -> Option<UsageWindow> {
+    Some(UsageWindow {
+        used_pct: v["used_pct"].as_f64()?,
+        resets_at: v["resets_at"].as_u64(),
+    })
+}
+
+fn usage_to_json(u: &AccountUsage) -> Value {
+    serde_json::json!({
+        "account": u.account,
+        "five_hour": window_to_json(&u.five_hour),
+        "seven_day": window_to_json(&u.seven_day),
+        "maxed": u.maxed.iter()
+            .map(|m| serde_json::json!({ "label": m.label, "resets_at": m.resets_at }))
+            .collect::<Vec<_>>(),
+        "error": u.error,
+    })
+}
+
+fn usage_from_json(v: &Value) -> AccountUsage {
+    AccountUsage {
+        account: v["account"].as_str().unwrap_or_default().to_string(),
+        five_hour: window_from_json(&v["five_hour"]),
+        seven_day: window_from_json(&v["seven_day"]),
+        maxed: v["maxed"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|m| MaxedLimit {
+                label: m["label"].as_str().unwrap_or_default().to_string(),
+                resets_at: m["resets_at"].as_u64(),
+            })
+            .collect(),
+        error: v["error"].as_str().map(str::to_string),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -376,5 +571,66 @@ mod tests {
     #[test]
     fn parse_usage_rejects_a_body_without_usage() {
         assert!(parse_usage(r#"{"error":"nope"}"#).is_err());
+    }
+
+    fn account(dir: &str) -> AccountRef {
+        AccountRef {
+            account: dir.trim_start_matches(".claude-").into(),
+            config_dir: dir.into(),
+        }
+    }
+
+    fn reading(account: &str, pct: f64, error: Option<&str>) -> AccountUsage {
+        AccountUsage {
+            account: account.into(),
+            five_hour: error.is_none().then_some(UsageWindow {
+                used_pct: pct,
+                resets_at: Some(5),
+            }),
+            seven_day: None,
+            maxed: Vec::new(),
+            error: error.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn fresh_cache_is_served_without_fetching() {
+        let dir = tempfile::tempdir().unwrap();
+        let accounts = [account(".claude-k1")];
+        let first = refresh_cache_in(dir.path(), &accounts, 100, 120, |_| {
+            reading("k1", 10.0, None)
+        });
+        let second = refresh_cache_in(dir.path(), &accounts, 150, 120, |_| {
+            panic!("a fresh cache must not trigger a fetch")
+        });
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn rate_limit_keeps_the_last_good_reading() {
+        let dir = tempfile::tempdir().unwrap();
+        let accounts = [account(".claude-k1")];
+        refresh_cache_in(dir.path(), &accounts, 100, 120, |_| {
+            reading("k1", 10.0, None)
+        });
+        let after = refresh_cache_in(dir.path(), &accounts, 300, 120, |_| {
+            reading("k1", 0.0, Some(RATE_LIMITED))
+        });
+        assert_eq!(after.accounts[".claude-k1"], reading("k1", 10.0, None));
+        assert_eq!(after.written_at, 300);
+    }
+
+    #[test]
+    fn held_lock_serves_the_stale_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let accounts = [account(".claude-k1")];
+        refresh_cache_in(dir.path(), &accounts, 100, 120, |_| {
+            reading("k1", 10.0, None)
+        });
+        let _held = try_lock_in(dir.path()).unwrap();
+        let after = refresh_cache_in(dir.path(), &accounts, 300, 120, |_| {
+            panic!("another sidebar holds the lock")
+        });
+        assert_eq!(after.written_at, 100);
     }
 }

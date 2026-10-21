@@ -73,45 +73,48 @@ pub(super) fn spawn(state: &AppState) -> Workers {
     }
 }
 
-/// Usage polling thread. Looks up every logged-in account on the machine,
-/// plus any account a pane runs from elsewhere, every
-/// [`USAGE_POLL_INTERVAL`] and straight away when that set changes.
+/// Usage polling thread. Every [`CHECK_INTERVAL`] it reads the cache all
+/// sidebars share, refreshing it first when it is older than
+/// [`USAGE_MAX_AGE`] or misses an account, and sends the result on when it
+/// changed. Accounts are every logged-in one on the machine, plus any a pane
+/// runs from elsewhere.
 pub(super) fn usage_poll_loop(
     tx: &mpsc::Sender<Vec<AccountUsage>>,
     in_use: &Mutex<Vec<AccountRef>>,
 ) {
-    const USAGE_POLL_INTERVAL: Duration = Duration::from_secs(120);
-    const CHECK_INTERVAL: Duration = Duration::from_secs(5);
+    const USAGE_MAX_AGE: u64 = 120;
+    const CHECK_INTERVAL: Duration = Duration::from_secs(10);
     // Renewing a token starts `claude`, so each account gets one try per window.
     const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
-    let mut last: Option<(Vec<AccountRef>, std::time::Instant)> = None;
     let mut refreshed_at: HashMap<String, std::time::Instant> = HashMap::new();
+    let mut last_sent: Option<Vec<AccountUsage>> = None;
     loop {
-        let current = all_accounts(in_use);
-        let due = match &last {
-            None => true,
-            Some((prev, at)) => *prev != current || at.elapsed() >= USAGE_POLL_INTERVAL,
-        };
-        if due {
-            let now = crate::time::now_epoch_secs();
-            let usage = current
-                .iter()
-                .map(|account| {
-                    let may_refresh = refreshed_at
-                        .get(&account.config_dir)
-                        .is_none_or(|at| at.elapsed() >= REFRESH_INTERVAL);
-                    let usage = usage::fetch_account(account, now, may_refresh);
-                    // Still expired after a renewal try: wait out the window.
-                    if may_refresh && usage.error.as_deref() == Some(usage::TOKEN_EXPIRED) {
-                        refreshed_at.insert(account.config_dir.clone(), std::time::Instant::now());
-                    }
-                    usage
-                })
-                .collect();
-            if tx.send(usage).is_err() {
+        let accounts = all_accounts(in_use);
+        let now = crate::time::now_epoch_secs();
+        let cache = usage::refresh_shared_cache(&accounts, now, USAGE_MAX_AGE, |account| {
+            let may_refresh = refreshed_at
+                .get(&account.config_dir)
+                .is_none_or(|at| at.elapsed() >= REFRESH_INTERVAL);
+            let usage = usage::fetch_account(account, now, may_refresh);
+            // Still expired after a renewal try: wait out the window.
+            if may_refresh && usage.error.as_deref() == Some(usage::TOKEN_EXPIRED) {
+                refreshed_at.insert(account.config_dir.clone(), std::time::Instant::now());
+            }
+            usage
+        });
+        let usage: Vec<AccountUsage> = accounts
+            .iter()
+            .filter_map(|a| {
+                let mut u = cache.accounts.get(&a.config_dir)?.clone();
+                u.account.clone_from(&a.account);
+                Some(u)
+            })
+            .collect();
+        if last_sent.as_ref() != Some(&usage) {
+            if tx.send(usage.clone()).is_err() {
                 return;
             }
-            last = Some((current, std::time::Instant::now()));
+            last_sent = Some(usage);
         }
         std::thread::sleep(CHECK_INTERVAL);
     }
