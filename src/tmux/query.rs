@@ -499,7 +499,7 @@ fn attach_claude_processes(sessions_map: &mut SessionMap, snapshot: &ProcessSnap
                 };
                 let config_dir = read_process_env(pid, "CLAUDE_CONFIG_DIR");
                 pane.claude = Some(ClaudeProcess {
-                    account: claude_account_label(config_dir.as_deref(), &default_account),
+                    account: crate::usage::account_label(config_dir.as_deref(), &default_account),
                     config_dir: config_dir
                         .filter(|d| !d.is_empty())
                         .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.claude")))
@@ -507,25 +507,6 @@ fn attach_claude_processes(sessions_map: &mut SessionMap, snapshot: &ProcessSnap
                 });
             }
         }
-    }
-}
-
-/// `~/.claude-k1` → `k1`; unset or `~/.claude` → `default_account`.
-fn claude_account_label(config_dir: Option<&str>, default_account: &str) -> String {
-    let Some(dir) = config_dir
-        .map(|d| d.trim_end_matches('/'))
-        .filter(|d| !d.is_empty())
-    else {
-        return default_account.to_string();
-    };
-    let base = Path::new(dir)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(dir);
-    match base.strip_prefix(".claude") {
-        Some("") => default_account.to_string(),
-        Some(rest) => rest.trim_start_matches(['-', '_', '.']).to_string(),
-        None => base.to_string(),
     }
 }
 
@@ -768,17 +749,6 @@ mod tests {
     }
 
     // ─── sanitize_prompt tests ──────────────────────────────────────
-
-    #[test]
-    fn claude_account_label_maps_config_dirs() {
-        assert_eq!(claude_account_label(None, "ken"), "ken");
-        assert_eq!(claude_account_label(Some("/home/u/.claude"), "ken"), "ken");
-        assert_eq!(
-            claude_account_label(Some("/home/u/.claude-k1/"), "ken"),
-            "k1"
-        );
-        assert_eq!(claude_account_label(Some("/opt/work"), "ken"), "work");
-    }
 
     #[test]
     fn clean_pane_title_strips_status_glyph() {

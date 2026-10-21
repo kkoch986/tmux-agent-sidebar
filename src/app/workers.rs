@@ -73,18 +73,21 @@ pub(super) fn spawn(state: &AppState) -> Workers {
     }
 }
 
-/// Usage polling thread. Looks accounts up every [`USAGE_POLL_INTERVAL`],
-/// and straight away when the set of accounts in use changes, so a newly
-/// opened account shows without waiting out the interval.
+/// Usage polling thread. Looks up every logged-in account on the machine,
+/// plus any account a pane runs from elsewhere, every
+/// [`USAGE_POLL_INTERVAL`] and straight away when that set changes.
 pub(super) fn usage_poll_loop(
     tx: &mpsc::Sender<Vec<AccountUsage>>,
-    accounts: &Mutex<Vec<AccountRef>>,
+    in_use: &Mutex<Vec<AccountRef>>,
 ) {
     const USAGE_POLL_INTERVAL: Duration = Duration::from_secs(120);
     const CHECK_INTERVAL: Duration = Duration::from_secs(5);
+    // Renewing a token starts `claude`, so each account gets one try per window.
+    const REFRESH_INTERVAL: Duration = Duration::from_secs(15 * 60);
     let mut last: Option<(Vec<AccountRef>, std::time::Instant)> = None;
+    let mut refreshed_at: HashMap<String, std::time::Instant> = HashMap::new();
     loop {
-        let current = accounts.lock().map(|a| a.clone()).unwrap_or_default();
+        let current = all_accounts(in_use);
         let due = match &last {
             None => true,
             Some((prev, at)) => *prev != current || at.elapsed() >= USAGE_POLL_INTERVAL,
@@ -93,7 +96,17 @@ pub(super) fn usage_poll_loop(
             let now = crate::time::now_epoch_secs();
             let usage = current
                 .iter()
-                .map(|account| usage::fetch_account(account, now))
+                .map(|account| {
+                    let may_refresh = refreshed_at
+                        .get(&account.config_dir)
+                        .is_none_or(|at| at.elapsed() >= REFRESH_INTERVAL);
+                    let usage = usage::fetch_account(account, now, may_refresh);
+                    // Still expired after a renewal try: wait out the window.
+                    if may_refresh && usage.error.as_deref() == Some(usage::TOKEN_EXPIRED) {
+                        refreshed_at.insert(account.config_dir.clone(), std::time::Instant::now());
+                    }
+                    usage
+                })
                 .collect();
             if tx.send(usage).is_err() {
                 return;
@@ -102,6 +115,24 @@ pub(super) fn usage_poll_loop(
         }
         std::thread::sleep(CHECK_INTERVAL);
     }
+}
+
+/// Accounts found on disk, then any in-use account they miss (one whose
+/// config dir lives somewhere unusual), sorted by label.
+fn all_accounts(in_use: &Mutex<Vec<AccountRef>>) -> Vec<AccountRef> {
+    let default_account = tmux::get_option(tmux::SIDEBAR_CLAUDE_DEFAULT_ACCOUNT)
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "default".to_string());
+    let mut accounts = std::env::var("HOME")
+        .map(|home| usage::discover_accounts(std::path::Path::new(&home), &default_account))
+        .unwrap_or_default();
+    for account in in_use.lock().map(|a| a.clone()).unwrap_or_default() {
+        if !accounts.iter().any(|a| a.config_dir == account.config_dir) {
+            accounts.push(account);
+        }
+    }
+    accounts.sort();
+    accounts
 }
 
 /// Deploy polling thread. Every [`DEPLOY_POLL_INTERVAL`] it re-reads the
