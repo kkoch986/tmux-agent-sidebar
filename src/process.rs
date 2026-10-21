@@ -98,6 +98,31 @@ impl ProcessSnapshot {
         })
     }
 
+    /// The outermost process in `seed`'s tree that runs `agent`, found
+    /// breadth-first so a nested `claude -p` never wins over the session
+    /// the pane was opened for.
+    pub(crate) fn find_agent_pid(&self, seed: u32, agent: &AgentType) -> Option<u32> {
+        let agent_name = agent.as_str();
+        let mut queue = VecDeque::from([seed]);
+        let mut seen = HashSet::new();
+        while let Some(pid) = queue.pop_front() {
+            if !seen.insert(pid) {
+                continue;
+            }
+            if self
+                .info_by_pid
+                .get(&pid)
+                .is_some_and(|info| process_matches_agent(info, agent_name))
+            {
+                return Some(pid);
+            }
+            if let Some(children) = self.children_of.get(&pid) {
+                queue.extend(children.iter().copied());
+            }
+        }
+        None
+    }
+
     pub(crate) fn command_lines_for_tree(&self, seed_pids: &[u32]) -> Vec<String> {
         self.descendants(seed_pids)
             .into_iter()
@@ -128,7 +153,18 @@ pub(crate) fn process_matches_agent(info: &ProcessInfo, agent_name: &str) -> boo
     let Some(command) = info.args.split_whitespace().next() else {
         return false;
     };
-    command_basename(command.trim_matches('"')) == agent_name
+    let command = command.trim_matches('"');
+    command_basename(command) == agent_name
+        || (agent_name == crate::tmux::CLAUDE_AGENT && is_versioned_claude_binary(command))
+}
+
+/// The native Claude installer runs `~/.local/share/claude/versions/<semver>`
+/// directly (e.g. on `--resume`), so its process name is the version, not
+/// `claude`. Missing it made every such pane look dead to the liveness scan.
+fn is_versioned_claude_binary(command: &str) -> bool {
+    Path::new(command)
+        .parent()
+        .is_some_and(|dir| dir.ends_with("claude/versions"))
 }
 
 #[cfg(test)]
@@ -169,6 +205,25 @@ mod tests {
 
         assert!(snapshot.tree_has_agent(&[100], &AgentType::OpenCode));
         assert!(!snapshot.tree_has_agent(&[100], &AgentType::Codex));
+    }
+
+    #[test]
+    fn process_matches_agent_recognizes_versioned_claude_binary() {
+        let info = ProcessInfo {
+            comm: "2.1.305".to_string(),
+            args: "/home/u/.local/share/claude/versions/2.1.305 --resume abc".to_string(),
+        };
+        assert!(process_matches_agent(&info, "claude"));
+        assert!(!process_matches_agent(&info, "codex"));
+    }
+
+    #[test]
+    fn find_agent_pid_prefers_outermost_claude() {
+        let snapshot = ProcessSnapshot::from_ps_output(
+            "100 1 bash bash\n101 100 2.1.305 /h/.local/share/claude/versions/2.1.305\n102 101 claude claude -p review\n",
+        );
+        assert_eq!(snapshot.find_agent_pid(100, &AgentType::Claude), Some(101));
+        assert_eq!(snapshot.find_agent_pid(100, &AgentType::Codex), None);
     }
 
     #[test]
