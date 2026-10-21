@@ -74,14 +74,15 @@ pub fn draw_usage(frame: &mut Frame, state: &AppState, area: Rect) {
     let mut body: Vec<Line<'static>> = Vec::new();
     for usage in &state.usage {
         body.push(account_line(usage, label_width, inner, state.now, theme));
-        for note in notes(usage, state.now) {
+        for (note, kind) in notes(usage, state.now) {
             let text = truncate_to_width(&format!(" {:label_width$} {note}", ""), inner);
-            body.push(Line::from(Span::styled(
-                text,
-                Style::default()
+            let style = match kind {
+                Note::Maxed => Style::default()
                     .fg(theme.status_error)
                     .add_modifier(Modifier::BOLD),
-            )));
+                Note::Stale => Style::default().fg(theme.status_waiting),
+            };
+            body.push(Line::from(Span::styled(text, style)));
         }
     }
     for line in body.into_iter().take(capacity) {
@@ -203,11 +204,18 @@ fn level_color(pct: f64, theme: &ColorTheme) -> Color {
     }
 }
 
-/// One line per maxed limit: `✕ 5h maxed · resets in 2h10m`. Per-model
-/// caps such as `Opus weekly` have no bar of their own, so this line is the
-/// only place they show.
-fn notes(usage: &AccountUsage, now: u64) -> Vec<String> {
-    usage
+enum Note {
+    Maxed,
+    Stale,
+}
+
+/// Lines under an account: one per maxed limit
+/// (`✕ 5h maxed · resets in 2h10m`; per-model caps such as `Opus weekly`
+/// have no bar, so this is the only place they show), then
+/// `⚠ rate limited · as of 12m ago` when the latest check failed and the
+/// row shows an older reading.
+fn notes(usage: &AccountUsage, now: u64) -> Vec<(String, Note)> {
+    let mut out: Vec<(String, Note)> = usage
         .maxed
         .iter()
         .map(|m| {
@@ -215,9 +223,17 @@ fn notes(usage: &AccountUsage, now: u64) -> Vec<String> {
                 .resets_at
                 .map(|at| format!(" · resets in {}", duration_label(at.saturating_sub(now))))
                 .unwrap_or_default();
-            format!("✕ {} maxed{resets}", m.label)
+            (format!("✕ {} maxed{resets}", m.label), Note::Maxed)
         })
-        .collect()
+        .collect();
+    if let Some(reason) = &usage.stale_reason {
+        let age = usage
+            .fetched_at
+            .map(|at| format!(" · as of {} ago", duration_label(now.saturating_sub(at))))
+            .unwrap_or_default();
+        out.push((format!("⚠ {reason}{age}"), Note::Stale));
+    }
+    out
 }
 
 fn duration_label(secs: u64) -> String {
@@ -248,6 +264,8 @@ mod tests {
             }),
             maxed: Vec::new(),
             error: None,
+            fetched_at: Some(1000),
+            stale_reason: None,
         }
     }
 
@@ -273,13 +291,19 @@ mod tests {
         state.now = 1000;
         state.usage = vec![
             usage("ken", 12.0, 38.0),
-            usage("k1", 81.0, 64.0),
+            AccountUsage {
+                fetched_at: Some(1000 - 720),
+                stale_reason: Some(crate::usage::RATE_LIMITED.into()),
+                ..usage("k1", 81.0, 64.0)
+            },
             AccountUsage {
                 account: "k0".into(),
                 five_hour: None,
                 seven_day: None,
                 maxed: Vec::new(),
                 error: Some("token expired".into()),
+                fetched_at: None,
+                stale_reason: None,
             },
             AccountUsage {
                 maxed: vec![
@@ -299,6 +323,7 @@ mod tests {
         ╭ Usage · 1 maxed ─────────────────────────╮
         │ ken 5h ░░  12% 1h12m   wk █░  38% 2d1h   │
         │ k1  5h ██  81% 1h12m   wk █░  64% 2d1h   │
+        │     ⚠ rate limited · as of 12m ago       │
         │ k0  token expired                        │
         │ k2  5h ██ 100% 1h12m   wk █░  55% 2d1h   │
         │     ✕ 5h maxed · resets in 2h10m         │

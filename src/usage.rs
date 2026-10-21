@@ -31,6 +31,11 @@ pub struct AccountUsage {
     pub maxed: Vec<MaxedLimit>,
     /// Why usage could not be read (`token expired`, `http 429`, …).
     pub error: Option<String>,
+    /// When these numbers were read, in epoch seconds.
+    pub fetched_at: Option<u64>,
+    /// Why the latest check failed when the numbers shown are an older
+    /// reading kept through a rate limit or network blip.
+    pub stale_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +71,8 @@ pub fn fetch_account(account: &AccountRef, now: u64, refresh: bool) -> AccountUs
         seven_day: None,
         maxed: Vec::new(),
         error: None,
+        fetched_at: None,
+        stale_reason: None,
     };
     let mut result = fetch_body(&account.config_dir, now);
     if refresh && result.as_ref().is_err_and(|e| e == TOKEN_EXPIRED) {
@@ -77,6 +84,7 @@ pub fn fetch_account(account: &AccountRef, now: u64, refresh: bool) -> AccountUs
             usage.five_hour = parsed.five_hour;
             usage.seven_day = parsed.seven_day;
             usage.maxed = parsed.maxed;
+            usage.fetched_at = Some(now);
         }
         Err(reason) => usage.error = Some(reason),
     }
@@ -314,8 +322,14 @@ fn parse_rfc3339_utc(s: &str) -> Option<u64> {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct UsageCache {
     pub written_at: u64,
+    /// No sidebar refreshes before this, in epoch seconds. Pushed further
+    /// out after a rate limit, so the sidebars back off together.
+    pub next_refresh_at: u64,
     pub accounts: HashMap<String, AccountUsage>,
 }
+
+/// How long every sidebar waits after the endpoint answers 429.
+const RATE_LIMIT_BACKOFF: u64 = 300;
 
 fn cache_dir() -> PathBuf {
     // SAFETY: getuid has no preconditions and cannot fail.
@@ -342,6 +356,7 @@ fn read_cache_from(dir: &Path) -> UsageCache {
         .collect();
     UsageCache {
         written_at: json["written_at"].as_u64().unwrap_or(0),
+        next_refresh_at: json["next_refresh_at"].as_u64().unwrap_or(0),
         accounts,
     }
 }
@@ -352,7 +367,11 @@ fn write_cache_to(dir: &Path, cache: &UsageCache) {
         .iter()
         .map(|(dir, u)| (dir.clone(), usage_to_json(u)))
         .collect();
-    let body = serde_json::json!({ "written_at": cache.written_at, "accounts": accounts });
+    let body = serde_json::json!({
+        "written_at": cache.written_at,
+        "next_refresh_at": cache.next_refresh_at,
+        "accounts": accounts,
+    });
     let _ = std::fs::create_dir_all(dir);
     let tmp = dir.join("usage.json.tmp");
     if std::fs::write(&tmp, body.to_string()).is_ok() {
@@ -370,8 +389,10 @@ impl Drop for CacheLock {
 }
 
 fn try_lock_in(dir: &Path) -> Option<CacheLock> {
-    // A refresh takes seconds; a lock older than this is a crashed holder's.
-    const STALE_LOCK: std::time::Duration = std::time::Duration::from_secs(90);
+    // A refresh can run long: three accounts, each with a 30s token renewal
+    // and a 10s request. Only a lock older than that is a crashed holder's;
+    // breaking a live one would let a second sidebar fetch alongside it.
+    const STALE_LOCK: std::time::Duration = std::time::Duration::from_secs(300);
     let _ = std::fs::create_dir_all(dir);
     let path = dir.join("usage.lock");
     let stale = std::fs::metadata(&path)
@@ -390,8 +411,9 @@ fn try_lock_in(dir: &Path) -> Option<CacheLock> {
         .map(|_| CacheLock(path))
 }
 
-/// Refresh the shared cache if it is older than `max_age` or misses an
-/// account, unless another sidebar holds the lock. Returns the cache as it
+/// Refresh the shared cache once it is due or misses an account, unless
+/// another sidebar holds the lock. `max_age` sets the next due time after
+/// a normal refresh. Returns the cache as it
 /// stands afterwards. `fetch` looks one account up.
 pub fn refresh_shared_cache(
     accounts: &[AccountRef],
@@ -407,25 +429,43 @@ fn refresh_cache_in(
     accounts: &[AccountRef],
     now: u64,
     max_age: u64,
-    mut fetch: impl FnMut(&AccountRef) -> AccountUsage,
+    fetch: impl FnMut(&AccountRef) -> AccountUsage,
 ) -> UsageCache {
     let cache = read_cache_from(dir);
-    let fresh = now.saturating_sub(cache.written_at) < max_age
-        && accounts
-            .iter()
-            .all(|a| cache.accounts.contains_key(&a.config_dir));
-    if fresh {
+    if is_fresh(&cache, accounts, now) {
         return cache;
     }
+    refresh_locked(dir, cache, accounts, now, max_age, fetch)
+}
+
+/// The refresh proper, given the stale `seen` snapshot that prompted it.
+fn refresh_locked(
+    dir: &Path,
+    seen: UsageCache,
+    accounts: &[AccountRef],
+    now: u64,
+    max_age: u64,
+    mut fetch: impl FnMut(&AccountRef) -> AccountUsage,
+) -> UsageCache {
     let Some(_lock) = try_lock_in(dir) else {
-        return cache;
+        return seen;
     };
+    // Another sidebar may have finished a refresh between reading `seen`
+    // and taking the lock; read again so its work is not repeated.
+    let cache = read_cache_from(dir);
+    if is_fresh(&cache, accounts, now) {
+        return cache;
+    }
     let mut next = UsageCache {
         written_at: now,
+        next_refresh_at: now + max_age,
         accounts: HashMap::new(),
     };
     for account in accounts {
         let fetched = fetch(account);
+        if fetched.error.as_deref() == Some(RATE_LIMITED) {
+            next.next_refresh_at = now + RATE_LIMIT_BACKOFF.max(max_age);
+        }
         // A blip (rate limit, network) keeps the last good reading rather
         // than blanking the row; only a real answer replaces it.
         let keep_previous = fetched.error.as_deref().is_some_and(is_transient)
@@ -434,7 +474,10 @@ fn refresh_cache_in(
                 .get(&account.config_dir)
                 .is_some_and(|prev| prev.error.is_none());
         let entry = if keep_previous {
-            cache.accounts[&account.config_dir].clone()
+            AccountUsage {
+                stale_reason: fetched.error,
+                ..cache.accounts[&account.config_dir].clone()
+            }
         } else {
             fetched
         };
@@ -442,6 +485,13 @@ fn refresh_cache_in(
     }
     write_cache_to(dir, &next);
     next
+}
+
+fn is_fresh(cache: &UsageCache, accounts: &[AccountRef], now: u64) -> bool {
+    now < cache.next_refresh_at
+        && accounts
+            .iter()
+            .all(|a| cache.accounts.contains_key(&a.config_dir))
 }
 
 fn is_transient(error: &str) -> bool {
@@ -471,6 +521,8 @@ fn usage_to_json(u: &AccountUsage) -> Value {
             .map(|m| serde_json::json!({ "label": m.label, "resets_at": m.resets_at }))
             .collect::<Vec<_>>(),
         "error": u.error,
+        "fetched_at": u.fetched_at,
+        "stale_reason": u.stale_reason,
     })
 }
 
@@ -489,6 +541,8 @@ fn usage_from_json(v: &Value) -> AccountUsage {
             })
             .collect(),
         error: v["error"].as_str().map(str::to_string),
+        fetched_at: v["fetched_at"].as_u64(),
+        stale_reason: v["stale_reason"].as_str().map(str::to_string),
     }
 }
 
@@ -590,6 +644,8 @@ mod tests {
             seven_day: None,
             maxed: Vec::new(),
             error: error.map(str::to_string),
+            fetched_at: error.is_none().then_some(100),
+            stale_reason: None,
         }
     }
 
@@ -616,8 +672,11 @@ mod tests {
         let after = refresh_cache_in(dir.path(), &accounts, 300, 120, |_| {
             reading("k1", 0.0, Some(RATE_LIMITED))
         });
-        assert_eq!(after.accounts[".claude-k1"], reading("k1", 10.0, None));
-        assert_eq!(after.written_at, 300);
+        let kept = &after.accounts[".claude-k1"];
+        assert_eq!(kept.five_hour, reading("k1", 10.0, None).five_hour);
+        assert_eq!(kept.fetched_at, Some(100));
+        assert_eq!(kept.stale_reason.as_deref(), Some(RATE_LIMITED));
+        assert_eq!(after.next_refresh_at, 300 + RATE_LIMIT_BACKOFF);
     }
 
     #[test]
@@ -632,5 +691,43 @@ mod tests {
             panic!("another sidebar holds the lock")
         });
         assert_eq!(after.written_at, 100);
+    }
+
+    #[test]
+    fn many_sidebars_finding_the_cache_stale_fetch_once() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let dir = tempfile::tempdir().unwrap();
+        let accounts = [account(".claude-k1")];
+        let fetches = AtomicUsize::new(0);
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| {
+                    for _ in 0..5 {
+                        refresh_cache_in(dir.path(), &accounts, 1000, 120, |_| {
+                            fetches.fetch_add(1, Ordering::SeqCst);
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                            reading("k1", 10.0, None)
+                        });
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                });
+            }
+        });
+        assert_eq!(fetches.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn refresh_skips_work_another_sidebar_finished_while_it_waited() {
+        let dir = tempfile::tempdir().unwrap();
+        let accounts = [account(".claude-k1")];
+        let stale_snapshot = read_cache_from(dir.path());
+        // Meanwhile another sidebar refreshed the file.
+        refresh_cache_in(dir.path(), &accounts, 100, 120, |_| {
+            reading("k1", 10.0, None)
+        });
+        let result = refresh_locked(dir.path(), stale_snapshot, &accounts, 110, 120, |_| {
+            panic!("the file was already fresh once the lock was taken")
+        });
+        assert_eq!(result.written_at, 100);
     }
 }
