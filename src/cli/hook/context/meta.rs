@@ -48,6 +48,28 @@ pub(in crate::cli::hook) fn clear_run_state(pane: &str) {
     tmux::unset_pane_option(pane, tmux::PANE_WAIT_REASON);
 }
 
+/// Flag a pane whose work has fully finished as waiting on the user. The
+/// flag reads as "unread": tmux's `pane-focus-in` hook clears it once the
+/// user looks (see `agent-sidebar.conf`). A pane already in view is
+/// skipped, since the user is watching it finish.
+pub(in crate::cli::hook) fn mark_turn_done(pane: &str) {
+    if !pane_in_view(pane) {
+        tmux::set_pane_option(pane, tmux::PANE_ATTENTION, "done");
+    }
+}
+
+/// Whether `pane` is the active pane of the active window of an attached
+/// session, i.e. what a client is currently showing.
+fn pane_in_view(pane: &str) -> bool {
+    if cfg!(test) {
+        return false;
+    }
+    tmux::display_message(
+        pane,
+        "#{&&:#{pane_active},#{&&:#{window_active},#{session_attached}}}",
+    ) == "1"
+}
+
 /// Check if a prompt is a system-injected message (not a real user prompt).
 pub(in crate::cli::hook) fn is_system_message(s: &str) -> bool {
     s.contains("<task-notification>") || s.contains("<system-reminder>") || s.contains("<task-")

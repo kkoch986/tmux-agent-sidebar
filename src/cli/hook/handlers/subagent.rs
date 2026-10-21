@@ -1,6 +1,9 @@
+use crate::cli::set_status;
 use crate::tmux;
 
-use super::super::context::{append_subagent, drain_pending_teardowns, remove_subagent};
+use super::super::context::{
+    append_subagent, clear_run_state, drain_pending_teardowns, mark_turn_done, remove_subagent,
+};
 
 pub(in crate::cli::hook) fn on_subagent_start(
     pane: &str,
@@ -39,8 +42,23 @@ pub(in crate::cli::hook) fn on_subagent_stop(pane: &str, agent_id: Option<&str>)
     // because subagents were active when SessionEnd / WorktreeRemove fired.
     if drained_to_empty {
         drain_pending_teardowns(pane);
+        hand_back_after_background_subagents(pane);
     }
     0
+}
+
+/// The parent's turn ended while subagents ran on (`on_stop` parked it in
+/// `background`). Once the last one stops and no bg shell remains, nothing
+/// is running for this pane any more, so it is the user's move.
+fn hand_back_after_background_subagents(pane: &str) {
+    let status = tmux::get_pane_option_value(pane, tmux::PANE_STATUS);
+    let bg_shell_live = !tmux::get_pane_option_value(pane, tmux::PANE_BG_CMD).is_empty();
+    if status != "background" || bg_shell_live {
+        return;
+    }
+    clear_run_state(pane);
+    set_status(pane, "idle");
+    mark_turn_done(pane);
 }
 
 #[cfg(test)]
@@ -83,6 +101,64 @@ mod tests {
         assert!(!tmux::test_mock::contains(pane, tmux::PANE_SUBAGENTS));
         on_subagent_start(pane, "Explore", Some(""));
         assert!(!tmux::test_mock::contains(pane, tmux::PANE_SUBAGENTS));
+    }
+
+    #[test]
+    fn last_subagent_stop_hands_background_pane_back_to_user() {
+        let _guard = tmux::test_mock::install();
+        let pane = "%SUB_HANDBACK";
+        tmux::test_mock::set(pane, tmux::PANE_STATUS, "background");
+        tmux::test_mock::set(pane, tmux::PANE_STARTED_AT, "123");
+        tmux::test_mock::set(pane, tmux::PANE_SUBAGENTS, "Explore:sub-1,Plan:sub-2");
+
+        on_subagent_stop(pane, Some("sub-1"));
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
+            Some("background"),
+            "pane stays busy while any subagent is still running"
+        );
+        assert!(!tmux::test_mock::contains(pane, tmux::PANE_ATTENTION));
+
+        on_subagent_stop(pane, Some("sub-2"));
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
+            Some("idle")
+        );
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_ATTENTION).as_deref(),
+            Some("done")
+        );
+        assert!(!tmux::test_mock::contains(pane, tmux::PANE_STARTED_AT));
+    }
+
+    #[test]
+    fn last_subagent_stop_leaves_running_parent_alone() {
+        let _guard = tmux::test_mock::install();
+        let pane = "%SUB_RUNNING_PARENT";
+        tmux::test_mock::set(pane, tmux::PANE_STATUS, "running");
+        tmux::test_mock::set(pane, tmux::PANE_SUBAGENTS, "Explore:sub-1");
+
+        on_subagent_stop(pane, Some("sub-1"));
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
+            Some("running")
+        );
+        assert!(!tmux::test_mock::contains(pane, tmux::PANE_ATTENTION));
+    }
+
+    #[test]
+    fn last_subagent_stop_keeps_background_when_bg_shell_live() {
+        let _guard = tmux::test_mock::install();
+        let pane = "%SUB_BG_SHELL";
+        tmux::test_mock::set(pane, tmux::PANE_STATUS, "background");
+        tmux::test_mock::set(pane, tmux::PANE_BG_CMD, "npm run dev");
+        tmux::test_mock::set(pane, tmux::PANE_SUBAGENTS, "Explore:sub-1");
+
+        on_subagent_stop(pane, Some("sub-1"));
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
+            Some("background")
+        );
     }
 
     // ─── deferred teardown regression tests ─────────────────────────

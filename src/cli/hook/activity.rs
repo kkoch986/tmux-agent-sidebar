@@ -54,7 +54,12 @@ pub(super) fn handle_activity_log(
     }
 
     let current_status = tmux::get_pane_option_value(pane, tmux::PANE_STATUS);
-    if current_status != "running" && !current_status.is_empty() {
+    // Tool calls from background subagents share the parent's pane. They
+    // must not flip a parked parent back to `running`, or it would stay
+    // there after the subagents finish, with no Stop to bring it down.
+    let background_subagent_tool = current_status == "background"
+        && !tmux::get_pane_option_value(pane, tmux::PANE_SUBAGENTS).is_empty();
+    if current_status != "running" && !current_status.is_empty() && !background_subagent_tool {
         set_status(pane, "running");
         if current_status == "waiting" {
             tmux::unset_pane_option(pane, tmux::PANE_ATTENTION);
@@ -319,6 +324,29 @@ mod tests {
         assert_eq!(
             tmux::test_mock::get(pane_id, tmux::PANE_BG_CMD).as_deref(),
             Some("npm run dev")
+        );
+        fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn handle_activity_log_background_subagent_tool_keeps_parent_background() {
+        let _guard = tmux::test_mock::install();
+        let pane_id = "%CLI_BG_SUBAGENT_TOOL";
+        let path = crate::activity::log_file_path(pane_id);
+        let _ = fs::remove_file(&path);
+        tmux::test_mock::set(pane_id, tmux::PANE_STATUS, "background");
+        tmux::test_mock::set(pane_id, tmux::PANE_SUBAGENTS, "Explore:sub-1");
+
+        handle_activity_log(
+            pane_id,
+            "Read",
+            &json!({"file_path": "/home/user/src/main.rs"}),
+            &Value::Null,
+        );
+
+        assert_eq!(
+            tmux::test_mock::get(pane_id, tmux::PANE_STATUS).as_deref(),
+            Some("background")
         );
         fs::remove_file(&path).ok();
     }

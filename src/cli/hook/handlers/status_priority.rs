@@ -21,9 +21,18 @@ pub(in crate::cli::hook) fn is_permission_wait_reason(wait_reason: &str) -> bool
     )
 }
 
-/// Status `Stop` should land in.
-pub(in crate::cli::hook) fn resolve_stop_status(bg_shell_live: bool) -> &'static str {
-    if bg_shell_live { "background" } else { "idle" }
+/// Status `Stop` should land in. Background subagents (the `Agent` tool
+/// with `run_in_background`) outlive the parent turn, so they count as
+/// background work just like a backgrounded shell.
+pub(in crate::cli::hook) fn resolve_stop_status(
+    bg_shell_live: bool,
+    subagents_live: bool,
+) -> &'static str {
+    if bg_shell_live || subagents_live {
+        "background"
+    } else {
+        "idle"
+    }
 }
 
 /// Status `Notification` should land in.
@@ -58,8 +67,14 @@ mod tests {
 
     #[test]
     fn resolve_stop_status_prefers_background_when_bg_shell_live() {
-        assert_eq!(resolve_stop_status(true), "background");
-        assert_eq!(resolve_stop_status(false), "idle");
+        assert_eq!(resolve_stop_status(true, false), "background");
+        assert_eq!(resolve_stop_status(false, false), "idle");
+    }
+
+    #[test]
+    fn resolve_stop_status_prefers_background_when_subagents_live() {
+        assert_eq!(resolve_stop_status(false, true), "background");
+        assert_eq!(resolve_stop_status(true, true), "background");
     }
 
     #[test]

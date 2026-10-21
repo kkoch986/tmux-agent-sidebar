@@ -6,7 +6,8 @@ use crate::tmux;
 use crate::time::now_epoch_secs;
 
 use super::super::context::{
-    AgentContext, clear_run_state, is_system_message, mark_task_reset, set_agent_meta,
+    AgentContext, clear_run_state, is_system_message, mark_task_reset, mark_turn_done,
+    set_agent_meta,
 };
 use super::super::notifications::{
     NotifyLabels, NotifyPayload, notification_run_id, notify_lifecycle, set_notification_run_id,
@@ -49,21 +50,23 @@ pub(in crate::cli::hook) fn on_stop(
         tmux::set_pane_option(pane, tmux::PANE_PROMPT_SOURCE, "response");
     }
     let bg_shell_live = !tmux::get_pane_option_value(pane, tmux::PANE_BG_CMD).is_empty();
-    // `Stop` is emitted for the parent turn, and Claude Code `Task` subagents
-    // are synchronous: once the parent reaches Stop, no child should still be
-    // running. Treat any leftover list as stale state from a missed or
-    // mismatched SubagentStop and clear it before `mark_task_reset`, whose
-    // guard intentionally skips writes while subagents are active.
-    tmux::unset_pane_option(pane, tmux::PANE_SUBAGENTS);
-    if bg_shell_live {
+    // Background subagents outlive the parent turn, so a non-empty list at
+    // Stop is live work, not stale state. `SubagentStop` drains it, and the
+    // last one out hands the pane back to the user (`on_subagent_stop`).
+    let subagents_live = !tmux::get_pane_option_value(pane, tmux::PANE_SUBAGENTS).is_empty();
+    let still_busy = bg_shell_live || subagents_live;
+    if still_busy {
         tmux::unset_pane_option(pane, tmux::PANE_WAIT_REASON);
     } else {
         clear_run_state(pane);
     }
     mark_task_reset(pane);
-    set_status(pane, resolve_stop_status(bg_shell_live));
+    set_status(pane, resolve_stop_status(bg_shell_live, subagents_live));
+    if !still_busy {
+        mark_turn_done(pane);
+    }
 
-    if !bg_shell_live {
+    if !still_busy {
         let run_id = notification_run_id(pane);
         // Skip the generic Stop notification if an explicit TaskCompleted
         // stamp from the current run has already fired — otherwise Claude
@@ -291,14 +294,15 @@ mod tests {
     }
 
     #[test]
-    fn on_stop_clears_stale_subagents() {
+    fn on_stop_keeps_live_background_subagents() {
         let _guard = tmux::test_mock::install();
-        let pane = "%STOP_STALE_SUBAGENTS";
+        let pane = "%STOP_BG_SUBAGENTS";
         tmux::test_mock::set(
             pane,
             tmux::PANE_SUBAGENTS,
             "general-purpose:sub-1,general-purpose:sub-2",
         );
+        tmux::test_mock::set(pane, tmux::PANE_STARTED_AT, "123");
         let ctx = AgentContext {
             agent: "claude",
             cwd: "/repo",
@@ -318,13 +322,55 @@ mod tests {
             },
         );
 
-        assert!(
-            !tmux::test_mock::contains(pane, tmux::PANE_SUBAGENTS),
-            "parent Stop must clear stale subagent list"
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_SUBAGENTS).as_deref(),
+            Some("general-purpose:sub-1,general-purpose:sub-2"),
+            "parent Stop must not drop subagents still running in the background"
         );
         assert_eq!(
             tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
+            Some("background")
+        );
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STARTED_AT).as_deref(),
+            Some("123")
+        );
+        assert!(
+            !tmux::test_mock::contains(pane, tmux::PANE_ATTENTION),
+            "a pane still running subagents does not need the user yet"
+        );
+    }
+
+    #[test]
+    fn on_stop_with_nothing_running_flags_attention() {
+        let _guard = tmux::test_mock::install();
+        let pane = "%STOP_DONE_ATTENTION";
+        let ctx = AgentContext {
+            agent: "claude",
+            cwd: "/repo",
+            permission_mode: "default",
+            worktree: &None,
+            session_id: &None,
+        };
+
+        on_stop(
+            pane,
+            &ctx,
+            "",
+            None,
+            &desktop_notification::DesktopNotificationSettings {
+                enabled: false,
+                events: Default::default(),
+            },
+        );
+
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_STATUS).as_deref(),
             Some("idle")
+        );
+        assert_eq!(
+            tmux::test_mock::get(pane, tmux::PANE_ATTENTION).as_deref(),
+            Some("done")
         );
     }
 
