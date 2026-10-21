@@ -10,6 +10,17 @@
   <a href="https://hiroppy.github.io/tmux-agent-sidebar/features/agent-pane/">Features</a>
 </p>
 
+## This fork
+
+[kkoch986/tmux-agent-sidebar](https://github.com/kkoch986/tmux-agent-sidebar) changes what the list shows:
+
+- **Grouped by tmux session and window**, in `choose-tree` order, with every pane listed.
+- **One clear row per agent:** the agent's own short summary of the session, the Claude account it runs under (`~/.claude-k1` shows as `k1`), and one line saying what it is doing now.
+- **"Needs you" is hard to miss:** a pending permission or question (`NEEDS YOU`), a failure (`FAILED`), or a finished turn you have not looked at yet (`YOUR TURN`) gets a solid bar, and the header counts them.
+- **OpenCode 2.x support** through a terminal-side bridge (`.opencode/plugins/tmux-agent-sidebar/`).
+
+To wire a machine up, install the plugin with TPM as below, then run `setup/install.sh`. It enables the Claude Code hooks in every `~/.claude*` account, links the OpenCode bridge, and tells you the one line to add to `~/.tmux.conf`. Personal options live in `setup/tmux.conf`.
+
 ## Features
 
 - **Every pane, one view** 
@@ -51,13 +62,15 @@ Reload tmux (`tmux source ~/.tmux.conf`), then press `prefix + I`. The install w
   ```
 
 - **Codex** — open a Codex pane, press `prefix + e`, click the yellow `ⓘ` badge, copy the setup snippet, paste it into the Codex pane.
-- **OpenCode** — symlink just the plugin file so your existing `~/.config/opencode/plugins/` contents stay untouched:
+- **OpenCode 2.x** — symlink the plugin folder (`setup/install.sh` does this). It runs inside each terminal, because the 2.x background server is shared by every pane and cannot tell them apart:
 
   ```sh
   mkdir -p ~/.config/opencode/plugins
-  ln -sf ~/.tmux/plugins/tmux-agent-sidebar/.opencode/plugins/tmux-agent-sidebar.js \
-    ~/.config/opencode/plugins/tmux-agent-sidebar.js
+  ln -sfn ~/.tmux/plugins/tmux-agent-sidebar/.opencode/plugins/tmux-agent-sidebar \
+    ~/.config/opencode/plugins/tmux-agent-sidebar
   ```
+
+  OpenCode 1.x still uses the single file, `.opencode/plugins/tmux-agent-sidebar.js`.
 
 Full walkthroughs: [Claude Code setup](https://hiroppy.github.io/tmux-agent-sidebar/getting-started/claude-code/) · [Codex setup](https://hiroppy.github.io/tmux-agent-sidebar/getting-started/codex/) · [OpenCode setup](https://hiroppy.github.io/tmux-agent-sidebar/getting-started/opencode/)
 
