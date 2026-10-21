@@ -1,0 +1,9 @@
+{
+  "name": "tmux-agent-sidebar-opencode",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./server.js",
+    "./tui": "./tui.js"
+  }
+}
