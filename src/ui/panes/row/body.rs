@@ -122,10 +122,29 @@ pub(super) fn subagent_row(subagents: &[String], ctx: &RowCtx) -> Option<Line<'s
         .iter()
         .map(|s| s.split(" #").next().unwrap_or(s))
         .collect();
+    // Same-type subagents usually run in batches; count them, in order.
+    let mut kinds: Vec<(&str, usize)> = Vec::new();
+    for name in &names {
+        match kinds.iter_mut().find(|(k, _)| k == name) {
+            Some((_, n)) => *n += 1,
+            None => kinds.push((name, 1)),
+        }
+    }
+    let kinds = kinds
+        .iter()
+        .map(|(k, n)| {
+            if *n > 1 {
+                format!("{k} ×{n}")
+            } else {
+                k.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
     let label = if names.len() == 1 {
-        format!("  ↳ subagent: {}", names[0])
+        format!("  ↳ subagent: {kinds}")
     } else {
-        format!("  ↳ {} subagents: {}", names.len(), names.join(", "))
+        format!("  ↳ {} subagents: {kinds}", names.len())
     };
     let text = truncate_to_width(&label, ctx.inner_width);
     let width = display_width(&text);

@@ -3,6 +3,25 @@ use std::collections::HashSet;
 use super::AppState;
 
 impl AppState {
+    /// Claude accounts with a session open in some pane, one entry per
+    /// config dir, sorted by label. Published to the usage poll thread.
+    pub fn usage_accounts(&self) -> Vec<crate::usage::AccountRef> {
+        let mut accounts: Vec<crate::usage::AccountRef> = self
+            .repo_groups
+            .iter()
+            .flat_map(|g| g.panes.iter())
+            .filter_map(|(pane, _)| pane.claude.as_ref())
+            .filter(|c| !c.config_dir.is_empty())
+            .map(|c| crate::usage::AccountRef {
+                account: c.account.clone(),
+                config_dir: c.config_dir.clone(),
+            })
+            .collect();
+        accounts.sort();
+        accounts.dedup_by(|a, b| a.config_dir == b.config_dir);
+        accounts
+    }
+
     /// Distinct git repo roots across every pane currently in the sidebar.
     /// Published to the deploy poll thread, which turns each into an
     /// `owner/name` slug and asks GitHub for its deploy runs.

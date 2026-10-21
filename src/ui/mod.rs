@@ -6,6 +6,7 @@ pub mod notices;
 pub mod panes;
 pub mod pet;
 pub mod text;
+mod usage;
 
 use std::collections::HashMap;
 
@@ -71,10 +72,14 @@ pub fn draw(frame: &mut Frame, state: &mut AppState) {
         .height
         .saturating_sub(if bot_h > 0 { divider_h + bot_h } else { 0 });
     let deploy_h = deploys::deploy_panel_height(state, shared_h);
+    let usage_h = usage::usage_panel_height(state, shared_h.saturating_sub(deploy_h));
 
     let mut constraints = vec![Constraint::Min(1)];
     if deploy_h > 0 {
         constraints.push(Constraint::Length(deploy_h));
+    }
+    if usage_h > 0 {
+        constraints.push(Constraint::Length(usage_h));
     }
     if bot_h > 0 {
         constraints.push(Constraint::Length(divider_h));
@@ -91,6 +96,10 @@ pub fn draw(frame: &mut Frame, state: &mut AppState) {
     let mut next = 1;
     if deploy_h > 0 {
         deploys::draw_deploys(frame, state, chunks[next]);
+        next += 1;
+    }
+    if usage_h > 0 {
+        usage::draw_usage(frame, state, chunks[next]);
         next += 1;
     }
 

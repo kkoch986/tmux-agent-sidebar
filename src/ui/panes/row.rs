@@ -197,6 +197,7 @@ mod tests {
         p.title = "Fix CSV aliases".into();
         p.claude = Some(crate::tmux::ClaudeProcess {
             account: "k1".into(),
+            config_dir: String::new(),
         });
         p
     }
@@ -241,10 +242,14 @@ mod tests {
     #[test]
     fn snapshot_background_pane_collapses_subagents_to_one_line() {
         let mut p = claude_pane(PaneStatus::Background);
-        p.subagents = vec!["Explore #ab12".into(), "Plan #cd34".into()];
+        p.subagents = vec![
+            "Explore #ab12".into(),
+            "Plan #cd34".into(),
+            "Explore #ef56".into(),
+        ];
         insta::assert_snapshot!(render_text(&p, None), @"
         ◎ Fix CSV aliases                       k1
-          ↳ 2 subagents: Explore, Plan
+          ↳ 3 subagents: Explore ×2, Plan
         ");
     }
 
@@ -255,6 +260,7 @@ mod tests {
         p.title = "Triage ZEN-6863".into();
         p.claude = Some(crate::tmux::ClaudeProcess {
             account: "ken".into(),
+            config_dir: String::new(),
         });
         insta::assert_snapshot!(render_text(&p, None), @"
         ○ Triage ZEN-6863                      ken

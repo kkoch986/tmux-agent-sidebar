@@ -500,6 +500,10 @@ fn attach_claude_processes(sessions_map: &mut SessionMap, snapshot: &ProcessSnap
                 let config_dir = read_process_env(pid, "CLAUDE_CONFIG_DIR");
                 pane.claude = Some(ClaudeProcess {
                     account: claude_account_label(config_dir.as_deref(), &default_account),
+                    config_dir: config_dir
+                        .filter(|d| !d.is_empty())
+                        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.claude")))
+                        .unwrap_or_default(),
                 });
             }
         }

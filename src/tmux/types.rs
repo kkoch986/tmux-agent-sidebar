@@ -44,6 +44,8 @@ pub struct ClaudeProcess {
     /// reads as `k1`, and the default `~/.claude` as
     /// `@sidebar_claude_default_account`. Empty when it cannot be read.
     pub account: String,
+    /// The config dir the account's credentials live in, for usage lookups.
+    pub config_dir: String,
 }
 
 impl PaneInfo {

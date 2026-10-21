@@ -841,7 +841,7 @@ fn snapshot_subagents_tree_ui() {
     └ project
       ┃ ● claude
           working…
-          ↳ 3 subagents: Explore, Plan, Exp…
+          ↳ 3 subagents: Explore ×2, Plan
     ╭ Activity │ Git ──────────────────────╮
     │            No activity yet           │
     ╰──────────────────────────────────────╯

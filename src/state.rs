@@ -140,6 +140,9 @@ pub struct AppState {
     /// while nothing is deploying, or when `@sidebar_deploys` is off — the
     /// Deploys section takes no height in that case.
     pub deploys: Vec<crate::deploy::DeployRun>,
+    /// Subscription usage for each Claude account with a session open,
+    /// filled in by the usage poll thread.
+    pub usage: Vec<crate::usage::AccountUsage>,
 }
 
 impl AppState {
@@ -188,6 +191,7 @@ impl AppState {
             sessions: SessionNamesState::new(),
             pet_enabled: false,
             deploys: Vec::new(),
+            usage: Vec::new(),
         };
         crate::state::pet::reseed_pet_idle_motion(&mut state);
         state

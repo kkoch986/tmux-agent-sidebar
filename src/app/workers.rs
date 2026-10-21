@@ -9,6 +9,7 @@ use crate::git::{self, GitData};
 use crate::session;
 use crate::state::{AppState, BottomTab};
 use crate::tmux;
+use crate::usage::{self, AccountRef, AccountUsage};
 use crate::version::{self, UpdateNotice};
 
 /// Channels and shared flags produced by [`spawn`] that the main event loop
@@ -21,6 +22,9 @@ pub(super) struct Workers {
     /// Repo roots the deploy thread should poll. The main loop overwrites this
     /// after each refresh; the thread reads it at the top of every cycle.
     pub deploy_repos: Arc<Mutex<Vec<String>>>,
+    pub usage_rx: Receiver<Vec<AccountUsage>>,
+    /// Accounts the usage thread should look up, refreshed like `deploy_repos`.
+    pub usage_accounts: Arc<Mutex<Vec<AccountRef>>>,
     pub git_tab_active: Arc<AtomicBool>,
 }
 
@@ -50,6 +54,12 @@ pub(super) fn spawn(state: &AppState) -> Workers {
     std::thread::spawn(move || {
         deploy_poll_loop(&deploy_tx, &deploy_repos_clone);
     });
+    let (usage_tx, usage_rx) = mpsc::channel::<Vec<AccountUsage>>();
+    let usage_accounts = Arc::new(Mutex::new(state.usage_accounts()));
+    let usage_accounts_clone = Arc::clone(&usage_accounts);
+    std::thread::spawn(move || {
+        usage_poll_loop(&usage_tx, &usage_accounts_clone);
+    });
 
     Workers {
         git_rx,
@@ -57,7 +67,40 @@ pub(super) fn spawn(state: &AppState) -> Workers {
         version_rx,
         deploy_rx,
         deploy_repos,
+        usage_rx,
+        usage_accounts,
         git_tab_active,
+    }
+}
+
+/// Usage polling thread. Looks accounts up every [`USAGE_POLL_INTERVAL`],
+/// and straight away when the set of accounts in use changes, so a newly
+/// opened account shows without waiting out the interval.
+pub(super) fn usage_poll_loop(
+    tx: &mpsc::Sender<Vec<AccountUsage>>,
+    accounts: &Mutex<Vec<AccountRef>>,
+) {
+    const USAGE_POLL_INTERVAL: Duration = Duration::from_secs(120);
+    const CHECK_INTERVAL: Duration = Duration::from_secs(5);
+    let mut last: Option<(Vec<AccountRef>, std::time::Instant)> = None;
+    loop {
+        let current = accounts.lock().map(|a| a.clone()).unwrap_or_default();
+        let due = match &last {
+            None => true,
+            Some((prev, at)) => *prev != current || at.elapsed() >= USAGE_POLL_INTERVAL,
+        };
+        if due {
+            let now = crate::time::now_epoch_secs();
+            let usage = current
+                .iter()
+                .map(|account| usage::fetch_account(account, now))
+                .collect();
+            if tx.send(usage).is_err() {
+                return;
+            }
+            last = Some((current, std::time::Instant::now()));
+        }
+        std::thread::sleep(CHECK_INTERVAL);
     }
 }
 
