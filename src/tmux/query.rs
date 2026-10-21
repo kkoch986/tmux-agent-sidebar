@@ -11,8 +11,8 @@ use super::options::{
     PANE_WORKTREE_BRANCH, PANE_WORKTREE_NAME, unset_pane_option,
 };
 use super::types::{
-    AgentType, CODEX_AGENT, PaneInfo, PaneStatus, PermissionMode, SessionInfo, WindowInfo,
-    WorktreeMetadata,
+    AgentType, CODEX_AGENT, ClaudeProcess, PaneInfo, PaneStatus, PermissionMode, SessionInfo,
+    WindowInfo, WorktreeMetadata,
 };
 use crate::worktree::SPAWNED_OPTION;
 
@@ -58,6 +58,8 @@ pub(super) mod pane_line_field {
     pub const SESSION_ID: usize = 19; // absolute 25 (@pane_session_id)
     pub const SIDEBAR_SPAWNED: usize = 20; // absolute 26 (@agent-sidebar-spawned)
     pub const BG_CMD: usize = 21; // absolute 27 (@pane_bg_cmd)
+    /// Optional: lines from older fixtures stop at `BG_CMD`.
+    pub const PANE_TITLE: usize = 22; // absolute 28 (pane_title)
     /// Minimum number of fields the pane-line suffix must contain.
     /// Equals `session_line_field::MIN_FIELDS - PANE_LINE_OFFSET`.
     pub const MIN_FIELDS: usize = 22;
@@ -96,6 +98,7 @@ fn pane_format() -> String {
         q(PANE_SESSION_ID),
         q(SPAWNED_OPTION),
         q(PANE_BG_CMD),
+        q("pane_title"),
     ]
     .join("|")
 }
@@ -125,15 +128,25 @@ pub(crate) fn query_sessions_with_process_snapshot() -> (Vec<SessionInfo>, Optio
         None => return (vec![], None),
     };
 
-    let process_snapshot = process_snapshot_for_panes(&all_panes_output);
+    let show_all_panes = show_all_panes_enabled();
+    // Always scanned: Claude panes are matched to their process to read the
+    // account, and to spot sessions whose hooks never reported in.
+    let process_snapshot = ProcessSnapshot::scan();
     let (mut sessions_map, codex_pids) =
-        build_session_hierarchy(&all_panes_output, process_snapshot.as_ref());
-    if !codex_pids.is_empty()
-        && let Some(snapshot) = &process_snapshot
-    {
-        resolve_codex_permission_modes(&mut sessions_map, &codex_pids, snapshot);
+        build_session_hierarchy(&all_panes_output, process_snapshot.as_ref(), show_all_panes);
+    if let Some(snapshot) = &process_snapshot {
+        if !codex_pids.is_empty() {
+            resolve_codex_permission_modes(&mut sessions_map, &codex_pids, snapshot);
+        }
+        attach_claude_processes(&mut sessions_map, snapshot);
     }
     (finalize_sessions(sessions_map), process_snapshot)
+}
+
+/// Whether `@sidebar_show_all_panes` is `on`, read once per refresh (not per
+/// pane) to avoid a subprocess per pane. Falls back to `off` when unset.
+fn show_all_panes_enabled() -> bool {
+    crate::tmux::get_option(crate::tmux::SIDEBAR_SHOW_ALL_PANES).is_some_and(|v| v == "on")
 }
 
 /// Parse the raw `tmux list-panes` output into an indexed session→window→pane
@@ -142,6 +155,7 @@ pub(crate) fn query_sessions_with_process_snapshot() -> (Vec<SessionInfo>, Optio
 fn build_session_hierarchy(
     all_panes_output: &str,
     process_snapshot: Option<&ProcessSnapshot>,
+    show_all_panes: bool,
 ) -> (SessionMap, Vec<CodexPidEntry>) {
     let mut sessions_map: SessionMap = indexmap::IndexMap::new();
     let mut codex_pids: Vec<CodexPidEntry> = Vec::new();
@@ -185,7 +199,9 @@ fn build_session_hierarchy(
                 panes: Vec::new(),
             });
 
-        if let Some(pane) = parse_pane_fields_with_processes(pane_fields, process_snapshot) {
+        if let Some(pane) =
+            parse_pane_fields_with_processes(pane_fields, process_snapshot, show_all_panes)
+        {
             if pane.agent == AgentType::Codex
                 && let Some(pid) = pane.pane_pid
             {
@@ -247,7 +263,8 @@ fn finalize_sessions(sessions_map: SessionMap) -> Vec<SessionInfo> {
 }
 
 /// Parse a single pane line from `tmux list-panes -F`.
-/// Returns None if the line has too few fields, is a sidebar, or has no agent.
+/// Returns None if the line has too few fields, is a sidebar, or has no agent
+/// (when `show_all_panes` is off).
 /// Thin wrapper used by the unit tests, which still construct a raw
 /// `|`-joined fixture line. Production callers go through
 /// `parse_pane_fields_with_processes` directly to avoid re-joining and re-splitting
@@ -255,13 +272,19 @@ fn finalize_sessions(sessions_map: SessionMap) -> Vec<SessionInfo> {
 /// prompt, branch) — see `build_session_hierarchy`.
 #[cfg(test)]
 pub(crate) fn parse_pane_line(line: &str) -> Option<PaneInfo> {
+    parse_pane_line_with_flags(line, false)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_pane_line_with_flags(line: &str, show_all_panes: bool) -> Option<PaneInfo> {
     let parts = split_tmux_fields(line, '|');
-    parse_pane_fields_with_processes(&parts, None)
+    parse_pane_fields_with_processes(&parts, None, show_all_panes)
 }
 
 fn parse_pane_fields_with_processes(
     parts: &[String],
     process_snapshot: Option<&ProcessSnapshot>,
+    show_all_panes: bool,
 ) -> Option<PaneInfo> {
     if parts.len() < pane_line_field::MIN_FIELDS {
         return None;
@@ -297,6 +320,14 @@ fn parse_pane_fields_with_processes(
         }
     }
 
+    // Whether to surface panes that have no agent running in them. When
+    // `@sidebar_show_all_panes` is off (the default), agentless panes are
+    // dropped just like before; when on, they pass through as `AgentType::None`
+    // with an idle status so the whole tmux tree stays visible.
+    if agent == AgentType::None && !show_all_panes {
+        return None;
+    }
+
     // Prefer @pane_cwd (set by hook from agent's cwd) over pane_current_path
     let pane_cwd = &parts[pane_line_field::PANE_CWD];
     let path = if !pane_cwd.is_empty() {
@@ -307,6 +338,7 @@ fn parse_pane_fields_with_processes(
 
     // Claude: read permission_mode from hook-set tmux variable.
     // Codex / OpenCode: no permission_mode in hooks, keep the default.
+    // None: no agent, keep the default.
     let permission_mode = if agent == AgentType::Claude {
         PermissionMode::from_label(&parts[pane_line_field::PERMISSION_MODE])
     } else {
@@ -327,7 +359,13 @@ fn parse_pane_fields_with_processes(
 
     Some(PaneInfo {
         pane_active: parts[pane_line_field::PANE_ACTIVE] == "1",
-        status: PaneStatus::from_label(&parts[pane_line_field::PANE_STATUS]),
+        // Agentless panes have no hook-written status; force Idle so they
+        // render under the dim idle glyph and the Idle status filter.
+        status: if agent == AgentType::None {
+            PaneStatus::Idle
+        } else {
+            PaneStatus::from_label(&parts[pane_line_field::PANE_STATUS])
+        },
         attention: !parts[pane_line_field::PANE_ATTENTION].is_empty(),
         agent,
         path,
@@ -355,6 +393,11 @@ fn parse_pane_fields_with_processes(
                 Some(raw.to_string())
             }
         },
+        title: parts
+            .get(pane_line_field::PANE_TITLE)
+            .map(|t| clean_pane_title(t))
+            .unwrap_or_default(),
+        claude: None,
     })
 }
 
@@ -438,23 +481,72 @@ fn detect_codex_permission_mode(args: &str) -> PermissionMode {
     PermissionMode::Default
 }
 
-fn process_snapshot_for_panes(all_panes_output: &str) -> Option<ProcessSnapshot> {
-    if !pane_output_needs_process_snapshot(all_panes_output) {
-        return None;
+fn attach_claude_processes(sessions_map: &mut SessionMap, snapshot: &ProcessSnapshot) {
+    let default_account = crate::tmux::get_option(crate::tmux::SIDEBAR_CLAUDE_DEFAULT_ACCOUNT)
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "default".to_string());
+    for windows in sessions_map.values_mut() {
+        for window in windows.values_mut() {
+            for pane in &mut window.panes {
+                if !matches!(pane.agent, AgentType::Claude | AgentType::None) {
+                    continue;
+                }
+                let Some(pid) = pane
+                    .pane_pid
+                    .and_then(|seed| snapshot.find_agent_pid(seed, &AgentType::Claude))
+                else {
+                    continue;
+                };
+                let config_dir = read_process_env(pid, "CLAUDE_CONFIG_DIR");
+                pane.claude = Some(ClaudeProcess {
+                    account: claude_account_label(config_dir.as_deref(), &default_account),
+                });
+            }
+        }
     }
-    ProcessSnapshot::scan()
 }
 
-fn pane_output_needs_process_snapshot(all_panes_output: &str) -> bool {
-    all_panes_output.lines().any(|line| {
-        let parts = split_tmux_fields(line, '|');
-        if parts.len() < session_line_field::MIN_FIELDS {
-            return false;
-        }
-        let pane_fields = &parts[session_line_field::PANE_LINE_OFFSET..];
-        AgentType::from_label(&pane_fields[pane_line_field::AGENT])
-            .is_some_and(|agent| matches!(agent, AgentType::Codex | AgentType::OpenCode))
+/// `~/.claude-k1` → `k1`; unset or `~/.claude` → `default_account`.
+fn claude_account_label(config_dir: Option<&str>, default_account: &str) -> String {
+    let Some(dir) = config_dir
+        .map(|d| d.trim_end_matches('/'))
+        .filter(|d| !d.is_empty())
+    else {
+        return default_account.to_string();
+    };
+    let base = Path::new(dir)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(dir);
+    match base.strip_prefix(".claude") {
+        Some("") => default_account.to_string(),
+        Some(rest) => rest.trim_start_matches(['-', '_', '.']).to_string(),
+        None => base.to_string(),
+    }
+}
+
+/// Read one variable from a process's environment. Linux-only (`/proc`);
+/// elsewhere it yields `None` and the account shows as the default.
+fn read_process_env(pid: u32, key: &str) -> Option<String> {
+    let raw = std::fs::read(format!("/proc/{pid}/environ")).ok()?;
+    raw.split(|b| *b == 0).find_map(|entry| {
+        let entry = std::str::from_utf8(entry).ok()?;
+        let (k, v) = entry.split_once('=')?;
+        (k == key).then(|| v.to_string())
     })
+}
+
+/// Keep just the summary an agent puts in its title: drop the status glyph
+/// Claude Code prefixes (`✳ `, spinner frames) and OpenCode's `OC | `.
+fn clean_pane_title(raw: &str) -> String {
+    let title = raw
+        .trim_start_matches(|c: char| !c.is_alphanumeric() && !c.is_ascii_punctuation())
+        .trim();
+    title
+        .strip_prefix("OC | ")
+        .unwrap_or(title)
+        .trim()
+        .to_string()
 }
 
 fn apply_codex_permission_modes(
@@ -611,6 +703,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         }
     }
 
@@ -670,6 +764,29 @@ mod tests {
     }
 
     // ─── sanitize_prompt tests ──────────────────────────────────────
+
+    #[test]
+    fn claude_account_label_maps_config_dirs() {
+        assert_eq!(claude_account_label(None, "ken"), "ken");
+        assert_eq!(claude_account_label(Some("/home/u/.claude"), "ken"), "ken");
+        assert_eq!(
+            claude_account_label(Some("/home/u/.claude-k1/"), "ken"),
+            "k1"
+        );
+        assert_eq!(claude_account_label(Some("/opt/work"), "ken"), "work");
+    }
+
+    #[test]
+    fn clean_pane_title_strips_status_glyph() {
+        assert_eq!(clean_pane_title("✳ Triage ZEN-6863"), "Triage ZEN-6863");
+        assert_eq!(clean_pane_title("⠐ Fix CSV aliases"), "Fix CSV aliases");
+        assert_eq!(clean_pane_title("kensi3"), "kensi3");
+        assert_eq!(clean_pane_title("(1) tests"), "(1) tests");
+        assert_eq!(
+            clean_pane_title("OC | Fix the login flow"),
+            "Fix the login flow"
+        );
+    }
 
     #[test]
     fn sanitize_prompt_filters_system_injected() {
@@ -913,8 +1030,30 @@ mod tests {
         let line = make_pane_line(&fields);
         assert!(
             parse_pane_line(&line).is_none(),
-            "empty agent should be rejected"
+            "empty agent should be rejected when show_all_panes is off"
         );
+    }
+
+    #[test]
+    fn parse_pane_line_keeps_agentless_pane_when_show_all_panes_on() {
+        let mut fields = full_fields();
+        fields[3] = ""; // no agent
+        fields[pane_line_field::PANE_STATUS] = "running"; // prove status is overridden to Idle
+        fields[pane_line_field::PANE_CURRENT_COMMAND] = "zsh";
+        let line = make_pane_line(&fields);
+
+        // When show_all_panes is off (default), agentless panes are dropped.
+        assert!(
+            parse_pane_line(&line).is_none(),
+            "agentless pane should be dropped when show_all_panes is off"
+        );
+
+        // When on, the pane is kept as AgentType::None with an Idle status.
+        let pane = parse_pane_line_with_flags(&line, true)
+            .expect("agentless pane should parse when show_all_panes is on");
+        assert_eq!(pane.agent, AgentType::None);
+        assert_eq!(pane.status, PaneStatus::Idle);
+        assert_eq!(pane.current_command, "zsh");
     }
 
     #[test]
@@ -1025,7 +1164,7 @@ mod tests {
         let fields = field_strings(&fields);
         let snapshot = process_snapshot("100 1 fish fish -c opencode\n101 100 opencode opencode\n");
 
-        let pane_info = parse_pane_fields_with_processes(&fields, Some(&snapshot))
+        let pane_info = parse_pane_fields_with_processes(&fields, Some(&snapshot), false)
             .expect("live OpenCode child process should keep pane visible");
 
         assert_eq!(pane_info.agent, AgentType::OpenCode);
@@ -1054,7 +1193,7 @@ mod tests {
             "200 1 zsh zsh -c codex\n201 200 codex /opt/homebrew/bin/codex --full-auto\n",
         );
 
-        let pane_info = parse_pane_fields_with_processes(&fields, Some(&snapshot))
+        let pane_info = parse_pane_fields_with_processes(&fields, Some(&snapshot), false)
             .expect("live Codex child process should keep pane visible");
 
         assert_eq!(pane_info.agent, AgentType::Codex);
@@ -1198,6 +1337,8 @@ mod tests {
                     session_name: String::new(),
                     sidebar_spawned: false,
                     bg_shell_cmd: None,
+                    title: String::new(),
+                    claude: None,
                 }],
             },
         );
@@ -1286,7 +1427,7 @@ mod tests {
         let line_d = make_full_pane_line("grouped", 0);
 
         let input = format!("{line_a}\n{line_b}\n{line_c}\n{line_d}");
-        let (sessions_map, _) = build_session_hierarchy(&input, None);
+        let (sessions_map, _) = build_session_hierarchy(&input, None, false);
         let sessions = finalize_sessions(sessions_map);
 
         // Should produce two sessions: "primary" and "grouped"

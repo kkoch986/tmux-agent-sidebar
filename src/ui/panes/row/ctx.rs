@@ -8,6 +8,8 @@ use crate::ui::text::pad_to;
 
 /// Left-edge marker character used for the currently selected pane.
 pub(super) const SELECTION_MARKER: &str = "┃";
+/// Left-edge bar on every line of a pane that needs the user.
+pub(super) const ATTENTION_MARKER: &str = "▌";
 
 pub(super) struct RowCtx<'a> {
     /// 1-column left marker: `┃` when the pane is selected, otherwise a space.

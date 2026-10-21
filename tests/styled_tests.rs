@@ -32,11 +32,10 @@ fn snapshot_selected_focused_styled() {
     // and the selection background spanning its content cells.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 10), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [bg:239]c[fg:255,bg:239]l[fg:255,bg:239]a[fg:255,bg:239]u[fg:255,bg:239]d[fg:255,bg:239]e[fg:255,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
     ");
 }
 
@@ -235,8 +234,8 @@ fn selection_marker_uses_accent_color_with_selection_bg() {
     //   2. the selected row never contains the old frame `│`
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 24), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
+     [fg:244] [fg:244] [bg:239] [bg:239] [fg:252,bg:239] [fg:252,bg:239]w[fg:252,bg:239]o[fg:252,bg:239]r[fg:252,bg:239]k[fg:252,bg:239]i[fg:252,bg:239]n[fg:252,bg:239]g[fg:252,bg:239]…[fg:252,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -285,8 +284,8 @@ fn selection_bg_covers_inner_padding() {
     // inner padding immediately after the `┃` marker (` [bg:239]`).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 24), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
+     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [bg:239]c[fg:255,bg:239]l[fg:255,bg:239]a[fg:255,bg:239]u[fg:255,bg:239]d[fg:255,bg:239]e[fg:255,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -333,7 +332,7 @@ fn no_selection_bg_when_not_selected() {
     // (bg:239) while the sidebar is not focused.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 24), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
@@ -397,11 +396,10 @@ fn snapshot_custom_theme_colors() {
     // agent_claude fg:226, status_idle fg:46).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 10), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:196]a[fg:196]i[fg:196]n[fg:196]:[fg:196] [fg:196]1[fg:196] [fg:196]w[fg:196]i[fg:196]n[fg:196]d[fg:196]o[fg:196]w[fg:196]
-    └[fg:244] p[fg:196]r[fg:196]o[fg:196]j[fg:196]e[fg:196]c[fg:196]t[fg:196]
-     [fg:244] [fg:244]┃[fg:196] ○[fg:46] [fg:226]c[fg:226]l[fg:226]a[fg:226]u[fg:226]d[fg:226]e[fg:226]
-     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    └[fg:244] p[fg:196,bold]r[fg:196,bold]o[fg:196,bold]j[fg:196,bold]e[fg:196,bold]c[fg:196,bold]t[fg:196,bold]
+     [fg:244] [fg:244]┃[fg:196] ○[fg:46] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
     ");
 }
 

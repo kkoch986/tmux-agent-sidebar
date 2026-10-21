@@ -1,5 +1,5 @@
 use ratatui::{
-    style::Style,
+    style::{Modifier, Style},
     text::{Line, Span},
 };
 
@@ -9,7 +9,7 @@ use crate::group::{PaneGitInfo, RepoGroup};
 use crate::state::{AppState, Focus};
 use crate::tmux::PaneInfo;
 use crate::ui::colors::ColorTheme;
-use crate::ui::text::display_width;
+use crate::ui::text::{display_width, truncate_to_width};
 
 /// Tree glyphs mirroring `choose-tree` (`prefix + w`): a window hangs off its
 /// session with `├`, the session's last window with `└`, and pane rows sit
@@ -131,20 +131,38 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
         } else {
             TREE_BRANCH
         };
-        let title = &group.name;
-        let title_color = if group_has_focused_pane {
-            theme.accent
+        let window_needs_you = filtered_panes.iter().any(|(p, _)| p.needs_attention());
+        let title = if window_needs_you {
+            format!("▶ {}", group.name)
         } else {
-            theme.text_active
+            group.name.clone()
+        };
+        let title_style = if window_needs_you {
+            Style::default()
+                .fg(theme.status_waiting)
+                .add_modifier(Modifier::BOLD)
+        } else if group_has_focused_pane {
+            Style::default()
+                .fg(theme.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(theme.text_active)
+                .add_modifier(Modifier::BOLD)
         };
         let gutter_style = Style::default().fg(theme.text_inactive);
+        let spawn_root = group.spawn_repo_root();
+        let title_room = width
+            .saturating_sub(GUTTER_WIDTH)
+            .saturating_sub(if spawn_root.is_some() { 2 } else { 0 });
+        let title = truncate_to_width(&title, title_room);
         let mut spans: Vec<Span<'static>> = vec![
             Span::styled(elbow.to_string(), gutter_style),
             Span::raw(" "),
-            Span::styled(title.clone(), Style::default().fg(title_color)),
+            Span::styled(title.clone(), title_style),
         ];
-        if let Some(root) = group.spawn_repo_root() {
-            let used = GUTTER_WIDTH + display_width(title);
+        if let Some(root) = spawn_root {
+            let used = GUTTER_WIDTH + display_width(&title);
             let pad_width = width
                 .saturating_sub(used)
                 .saturating_sub(SPAWN_BUTTON.len());
@@ -184,12 +202,14 @@ pub(super) fn collect(state: &AppState, width: u16) -> CollectedRows {
             let pane_state = state.pane_state(&pane.pane_id);
             let ports = pane_state.map(|s| s.ports.as_slice());
             let task_progress = pane_state.and_then(|s| s.task_progress.as_ref());
+            let last_activity = pane_state.and_then(|s| s.last_activity.as_ref());
             let status_line_idx = collected.lines.len();
             let pane_lines = row::render_pane_lines_with_ports(
                 pane,
                 git_info,
                 ports,
                 task_progress,
+                last_activity,
                 is_selected,
                 is_active,
                 pane_width,
@@ -276,6 +296,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         }
     }
 

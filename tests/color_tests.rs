@@ -142,10 +142,10 @@ fn test_permission_mode_bypass_all_renders_danger_color() {
     // badge_danger (fg:167).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:167]![fg:167]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -194,10 +194,10 @@ fn test_permission_mode_full_auto_renders_auto_color() {
     // badge_auto (fg:221).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174] [fg:221]a[fg:221]u[fg:221]t[fg:221]o[fg:221]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]            a[fg:221]u[fg:221]t[fg:221]o[fg:221]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -245,7 +245,7 @@ fn test_permission_mode_normal_no_badge() {
     // Snapshot locks in that the agent row shows no badge in Normal mode.
     insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
     ╭ Activity │ Git ──────────╮
@@ -319,9 +319,9 @@ fn test_git_summary_modified_uses_badge_auto_color() {
     // (badge_auto fg:221).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -382,12 +382,12 @@ fn test_task_progress_line_uses_task_progress_color() {
     // the progress glyphs (✔/◼/◻) with the "1/3" count.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]                —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
      [fg:244] [fg:244]   [fg:223] [fg:223]✔[fg:223]◼[fg:223]◻[fg:223] [fg:223]1[fg:223]/[fg:223]3[fg:223]
-
 
 
 
@@ -448,11 +448,11 @@ fn test_subagent_line_uses_subagent_color() {
     // rendered "Explore #1" label.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]                —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-     [fg:244] [fg:244]   [fg:252] [fg:252]└[fg:252] [fg:252]E[fg:73]x[fg:73]p[fg:73]l[fg:73]o[fg:73]r[fg:73]e[fg:73] [fg:73]#[fg:73]1[fg:73]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -504,11 +504,11 @@ fn test_response_arrow_uses_response_arrow_color() {
     //   • text_active color (fg:255) on the focused response text
     insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 27), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]                —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-     [fg:244] [fg:244]  ▷[fg:81,bold] [fg:81,bold]T[fg:255]a[fg:255]s[fg:255]k[fg:255] [fg:255]c[fg:255]o[fg:255]m[fg:255]p[fg:255]l[fg:255]e[fg:255]t[fg:255]e[fg:255]d[fg:255] [fg:255]s[fg:255]u[fg:255]c[fg:255]c[fg:255]e[fg:255]s[fg:255]s[fg:255]f[fg:255]u[fg:255]l[fg:255]l[fg:255]y[fg:255]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ○[fg:110] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:244] [fg:244]T[fg:244]a[fg:244]s[fg:244]k[fg:244] [fg:244]c[fg:244]o[fg:244]m[fg:244]p[fg:244]l[fg:244]e[fg:244]t[fg:244]e[fg:244]d[fg:244] [fg:244]s[fg:244]u[fg:244]c[fg:244]c[fg:244]e[fg:244]s[fg:244]s[fg:244]f[fg:244]u[fg:244]l[fg:244]l[fg:244]y[fg:244]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -564,11 +564,11 @@ fn test_pr_link_uses_pr_link_color() {
     // the underline modifier on the `#99` glyphs.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
 
 
 
@@ -633,11 +633,11 @@ fn test_diff_stat_added_uses_diff_added_color() {
     // diff_added color (fg:114).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 40), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
 
 
 
@@ -702,9 +702,9 @@ fn test_diff_stat_deleted_uses_diff_deleted_color() {
     // diff_deleted color (fg:174).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -762,9 +762,9 @@ fn test_file_change_stat_uses_file_change_color() {
     // badge_auto (fg:221) on the status glyph.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
 
     ╭[fg:153] [fg:153]A[fg:252]c[fg:252]t[fg:252]i[fg:252]v[fg:252]i[fg:252]t[fg:252]y[fg:252] [fg:240]│[fg:240] [fg:240]G[fg:153]i[fg:153]t[fg:153] [fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]╮[fg:153]
     │[fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153] [fg:153]│[fg:153]
@@ -864,11 +864,11 @@ fn test_branch_color_in_agent_panel() {
     // (fg:109).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 26), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                                    —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]                —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]                              +[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-     [fg:244] [fg:244]┃[fg:153]  [fg:109] [fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]/[fg:109]c[fg:109]o[fg:109]o[fg:109]l[fg:109]-[fg:109]f[fg:109]e[fg:109]a[fg:109]t[fg:109]u[fg:109]r[fg:109]e[fg:109]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]                              +[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
     ");
 }
 
@@ -897,9 +897,9 @@ fn test_selection_bg_color_applied() {
     // background (bg:239).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
-     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]○[fg:110,bg:239] [bg:239]c[fg:255,bg:239]l[fg:255,bg:239]a[fg:255,bg:239]u[fg:255,bg:239]d[fg:255,bg:239]e[fg:255,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]
@@ -966,13 +966,13 @@ fn test_accent_vs_border_inactive_colors() {
     //   • unfocused group header rendered with border_inactive (fg:240)
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]
-    ├[fg:244] f[fg:153]o[fg:153]c[fg:153]u[fg:153]s[fg:153]e[fg:153]d[fg:153]-[fg:153]r[fg:153]e[fg:153]p[fg:153]o[fg:153]
-    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-    └[fg:244] u[fg:255]n[fg:255]f[fg:255]o[fg:255]c[fg:255]u[fg:255]s[fg:255]e[fg:255]d[fg:255]-[fg:255]r[fg:255]e[fg:255]p[fg:255]o[fg:255]
-     [fg:244] [fg:244]  ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
-     [fg:244] [fg:244]   [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
+    ├[fg:244] f[fg:153,bold]o[fg:153,bold]c[fg:153,bold]u[fg:153,bold]s[fg:153,bold]e[fg:153,bold]d[fg:153,bold]-[fg:153,bold]r[fg:153,bold]e[fg:153,bold]p[fg:153,bold]o[fg:153,bold]
+    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [bg:239]c[fg:255,bg:239]l[fg:255,bg:239]a[fg:255,bg:239]u[fg:255,bg:239]d[fg:255,bg:239]e[fg:255,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    │[fg:244] [fg:244] [bg:239] [bg:239] [fg:252,bg:239] [fg:252,bg:239]w[fg:252,bg:239]o[fg:252,bg:239]r[fg:252,bg:239]k[fg:252,bg:239]i[fg:252,bg:239]n[fg:252,bg:239]g[fg:252,bg:239]…[fg:252,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    └[fg:244] u[fg:255,bold]n[fg:255,bold]f[fg:255,bold]o[fg:255,bold]c[fg:255,bold]u[fg:255,bold]s[fg:255,bold]e[fg:255,bold]d[fg:255,bold]-[fg:255,bold]r[fg:255,bold]e[fg:255,bold]p[fg:255,bold]o[fg:255,bold]
+     [fg:244] [fg:244]  ○[fg:110] c[fg:255]o[fg:255]d[fg:255]e[fg:255]x[fg:255]
 
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
@@ -1023,10 +1023,11 @@ fn test_running_status_color_in_output() {
     // color (fg:82).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ●[fg:82] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
+     [fg:244] [fg:244]┃[fg:153] ●[fg:82] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+     [fg:244] [fg:244]   [fg:252] [fg:252]w[fg:252]o[fg:252]r[fg:252]k[fg:252]i[fg:252]n[fg:252]g[fg:252]…[fg:252]
     ");
 }
 
@@ -1053,10 +1054,11 @@ fn test_waiting_status_color_in_output() {
     // color (fg:221).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]1[fg:255]  ○[fg:245]0[fg:245]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221]  [fg:16,bg:221,bold]▶[fg:16,bg:221,bold] [fg:16,bg:221,bold]1[fg:16,bg:221,bold] [fg:16,bg:221,bold]N[fg:16,bg:221,bold]E[fg:16,bg:221,bold]E[fg:16,bg:221,bold]D[fg:16,bg:221,bold]S[fg:16,bg:221,bold] [fg:16,bg:221,bold]Y[fg:16,bg:221,bold]O[fg:16,bg:221,bold]U[fg:16,bg:221,bold] [fg:16,bg:221,bold]        —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ◐[fg:221] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    └[fg:244] ▶[fg:221,bold] [fg:221,bold]p[fg:221,bold]r[fg:221,bold]o[fg:221,bold]j[fg:221,bold]e[fg:221,bold]c[fg:221,bold]t[fg:221,bold]
+     [fg:244] [fg:244]▌[fg:221] [bg:221]◐[fg:16,bg:221] [bg:221]c[fg:16,bg:221,bold]l[fg:16,bg:221,bold]a[fg:16,bg:221,bold]u[fg:16,bg:221,bold]d[fg:16,bg:221,bold]e[fg:16,bg:221,bold] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221]N[fg:16,bg:221,bold]E[fg:16,bg:221,bold]E[fg:16,bg:221,bold]D[fg:16,bg:221,bold]S[fg:16,bg:221,bold] [fg:16,bg:221,bold]Y[fg:16,bg:221,bold]O[fg:16,bg:221,bold]U[fg:16,bg:221,bold]
+     [fg:244] [fg:244]▌[fg:221]  [fg:221,bold] [fg:221,bold]▶[fg:221,bold] [fg:221,bold]w[fg:221,bold]a[fg:221,bold]i[fg:221,bold]t[fg:221,bold]i[fg:221,bold]n[fg:221,bold]g[fg:221,bold] [fg:221,bold]f[fg:221,bold]o[fg:221,bold]r[fg:221,bold] [fg:221,bold]y[fg:221,bold]o[fg:221,bold]u[fg:221,bold]
     ");
 }
 
@@ -1083,10 +1085,11 @@ fn test_error_status_color_in_output() {
     // color (fg:167).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]0[fg:245]  ✕[fg:245]1[fg:255]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221]  [fg:16,bg:221,bold]▶[fg:16,bg:221,bold] [fg:16,bg:221,bold]1[fg:16,bg:221,bold] [fg:16,bg:221,bold]N[fg:16,bg:221,bold]E[fg:16,bg:221,bold]E[fg:16,bg:221,bold]D[fg:16,bg:221,bold]S[fg:16,bg:221,bold] [fg:16,bg:221,bold]Y[fg:16,bg:221,bold]O[fg:16,bg:221,bold]U[fg:16,bg:221,bold] [fg:16,bg:221,bold]        —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ✕[fg:167] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
+    └[fg:244] ▶[fg:221,bold] [fg:221,bold]p[fg:221,bold]r[fg:221,bold]o[fg:221,bold]j[fg:221,bold]e[fg:221,bold]c[fg:221,bold]t[fg:221,bold]
+     [fg:244] [fg:244]▌[fg:221] [bg:221]✕[fg:16,bg:221] [bg:221]c[fg:16,bg:221,bold]l[fg:16,bg:221,bold]a[fg:16,bg:221,bold]u[fg:16,bg:221,bold]d[fg:16,bg:221,bold]e[fg:16,bg:221,bold] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221] [bg:221]F[fg:16,bg:221,bold]A[fg:16,bg:221,bold]I[fg:16,bg:221,bold]L[fg:16,bg:221,bold]E[fg:16,bg:221,bold]D[fg:16,bg:221,bold]
+     [fg:244] [fg:244]▌[fg:221]  [fg:221,bold] [fg:221,bold]✕[fg:221,bold] [fg:221,bold]s[fg:221,bold]t[fg:221,bold]o[fg:221,bold]p[fg:221,bold]p[fg:221,bold]e[fg:221,bold]d[fg:221,bold] [fg:221,bold]w[fg:221,bold]i[fg:221,bold]t[fg:221,bold]h[fg:221,bold] [fg:221,bold]a[fg:221,bold]n[fg:221,bold] [fg:221,bold]e[fg:221,bold]r[fg:221,bold]r[fg:221,bold]…[fg:221,bold]
     ");
 }
 
@@ -1112,9 +1115,9 @@ fn test_idle_status_color_in_output() {
     // color (fg:110).
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 25), @"
      ≡[fg:111]1[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]1[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]
-    └[fg:244] p[fg:153]r[fg:153]o[fg:153]j[fg:153]e[fg:153]c[fg:153]t[fg:153]
+    └[fg:244] p[fg:153,bold]r[fg:153,bold]o[fg:153,bold]j[fg:153,bold]e[fg:153,bold]c[fg:153,bold]t[fg:153,bold]
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]

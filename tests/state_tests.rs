@@ -92,12 +92,12 @@ fn test_line_to_row_single_agent() {
     state.repo_groups = vec![make_repo_group("project", vec![pane])];
     state.rebuild_row_targets();
     let _ = render_to_styled_string(&mut state, 28, 10);
-    // session header, window row, agent status, idle hint
-    assert_eq!(state.layout.line_to_row.len(), 4);
+    // session header, window row, agent status (an idle pane with
+    // nothing to report is a single line)
+    assert_eq!(state.layout.line_to_row.len(), 3);
     assert_eq!(state.layout.line_to_row[0], None); // session header
     assert_eq!(state.layout.line_to_row[1], None); // window row
     assert_eq!(state.layout.line_to_row[2], Some(0)); // agent status
-    assert_eq!(state.layout.line_to_row[3], Some(0)); // idle hint
 }
 
 #[test]
@@ -122,6 +122,8 @@ fn test_line_to_row_two_agents() {
         session_name: String::new(),
         sidebar_spawned: false,
         bg_shell_cmd: None,
+        title: String::new(),
+        claude: None,
     };
     let pane2 = PaneInfo {
         pane_id: "%2".into(),
@@ -143,6 +145,8 @@ fn test_line_to_row_two_agents() {
         session_name: String::new(),
         sidebar_spawned: false,
         bg_shell_cmd: None,
+        title: String::new(),
+        claude: None,
     };
 
     let mut state = make_state(vec![SessionInfo {
@@ -159,13 +163,13 @@ fn test_line_to_row_two_agents() {
     state.repo_groups = vec![make_repo_group("project", vec![pane1, pane2])];
     state.rebuild_row_targets();
     let _ = render_to_styled_string(&mut state, 28, 10);
-    // session header, window row, agent1, agent2 status+hint
+    // session header, window row, agent1 status+detail, agent2 status
     assert_eq!(state.layout.line_to_row.len(), 5);
     assert_eq!(state.layout.line_to_row[0], None); // session header
     assert_eq!(state.layout.line_to_row[1], None); // window row
-    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent 1
-    assert_eq!(state.layout.line_to_row[3], Some(1)); // agent 2 status line
-    assert_eq!(state.layout.line_to_row[4], Some(1)); // agent 2 idle hint
+    assert_eq!(state.layout.line_to_row[2], Some(0)); // agent 1 status line
+    assert_eq!(state.layout.line_to_row[3], Some(0)); // agent 1 "working…"
+    assert_eq!(state.layout.line_to_row[4], Some(1)); // agent 2 status line
 }
 
 #[test]
@@ -217,11 +221,10 @@ fn test_line_to_row_with_version_banner() {
     state.rebuild_row_targets();
     let _ = render_to_string(&mut state, 28, 10);
     // version banner should still stay out of the scrollable list
-    assert_eq!(state.layout.line_to_row.len(), 4);
+    assert_eq!(state.layout.line_to_row.len(), 3);
     assert_eq!(state.layout.line_to_row[0], None); // session header
     assert_eq!(state.layout.line_to_row[1], None); // window row
     assert_eq!(state.layout.line_to_row[2], Some(0)); // agent status line
-    assert_eq!(state.layout.line_to_row[3], Some(0)); // idle hint
 }
 
 #[test]

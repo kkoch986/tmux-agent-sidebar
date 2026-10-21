@@ -116,7 +116,7 @@ fn snapshot_git_status_tab_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │feature/sidebar       ↑2↓1│
@@ -156,7 +156,7 @@ fn snapshot_git_clean_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
@@ -193,7 +193,7 @@ fn snapshot_activity_tab_active_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │10:32                 Edit│
@@ -233,7 +233,7 @@ fn activity_tab_leaves_one_blank_row_above_entries() {
     // one row further down.
     insta::assert_snapshot!(render_to_string(&mut state, 28, 24), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │10:32                 Edit│
@@ -362,7 +362,7 @@ fn snapshot_git_full_info_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
@@ -540,7 +540,7 @@ fn snapshot_git_long_filename_truncated_ui() {
     let plain = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
@@ -630,10 +630,11 @@ fn snapshot_git_more_than_5_files() {
     let plain = render_to_string(&mut state, 28, 40);
     insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
       ┃ ● claude
+          working…
     ╭ Activity │ Git ──────────╮
     │main                      │
     │                   7 files│
@@ -658,10 +659,11 @@ fn snapshot_git_more_than_5_files() {
     let scrolled = render_to_string(&mut state, 28, 40);
     insta::assert_snapshot!(scrolled, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
       ┃ ● claude
+          working…
     ╭ Activity │ Git ──────────╮
     │main                      │
     │                   7 files│
@@ -834,12 +836,12 @@ fn snapshot_subagents_tree_ui() {
     let output = render_to_string(&mut state, 40, 28);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                                    — ▾
+    ⓘ ✓ nothing needs you                — ▾
+    main: 1 window
     └ project
       ┃ ● claude
-          ├ Explore #1
-          ├ Plan #2
-          └ Explore #2
+          working…
+          ↳ 3 subagents: Explore, Plan, Exp…
     ╭ Activity │ Git ──────────────────────╮
     │            No activity yet           │
     ╰──────────────────────────────────────╯
@@ -872,11 +874,11 @@ fn snapshot_subagent_long_name_truncated_ui() {
     let output = render_to_string(&mut state, 28, 27);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     └ project
       ┃ ● claude
-          ├ superpowers:code-re…
-          └ claude-code-guide #2
+          working…
+          ↳ 2 subagents: superp…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -909,10 +911,10 @@ fn snapshot_activity_empty_centered_ui() {
     let output = render_to_string(&mut state, 28, 26);
     insta::assert_snapshot!(output, @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
+    main: 1 window
     └ project
       ┃ ○ claude
-          Waiting for prompt…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -941,10 +943,10 @@ fn snapshot_git_clean_centered_ui() {
     let output = render_to_string(&mut state, 28, 26);
     insta::assert_snapshot!(output, @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
+    main: 1 window
     └ project
       ┃ ○ claude
-          Waiting for prompt…
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
     ╰──────────────────────────╯
@@ -982,7 +984,7 @@ fn snapshot_git_branch_loaded_no_changes_shows_inline_clean() {
     let plain = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
@@ -1018,7 +1020,7 @@ fn snapshot_git_no_data_shows_centered_clean() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │    Working tree clean    │
@@ -1202,11 +1204,11 @@ fn snapshot_branch_truncated_ui() {
     let plain = render_to_string(&mut state, 28, 30);
     insta::assert_snapshot!(plain, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ dotfiles                 +
       ┃ ● claude
-      ┃   feature/tmux-sidebar-…
+          working…
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -1264,10 +1266,11 @@ fn snapshot_git_staged_unstaged_untracked_ui() {
     let output = render_to_string(&mut state, 28, 30);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
       ┃ ● claude
+          working…
     ╭ Activity │ Git ──────────╮
     │main                    #5│
     │+12/-3             4 files│
@@ -1317,7 +1320,7 @@ fn snapshot_git_long_branch_with_pr_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │feature/very-long-br… #123│
@@ -1363,7 +1366,7 @@ fn snapshot_git_staged_only_ui() {
     let output = render_to_string(&mut state, 28, 24);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     ╭ Activity │ Git ──────────╮
     │main                      │
@@ -1409,10 +1412,11 @@ fn snapshot_git_many_files_more_indicator_ui() {
     let output = render_to_string(&mut state, 28, 30);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
       ┃ ● claude
+          working…
     ╭ Activity │ Git ──────────╮
     │dev                       │
     │                   7 files│
@@ -1464,10 +1468,11 @@ fn snapshot_git_more_than_10_files_ui() {
     let output = render_to_string(&mut state, 28, 30);
     insta::assert_snapshot!(output, @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
       ┃ ● claude
+          working…
     ╭ Activity │ Git ──────────╮
     │dev                       │
     │                  12 files│
@@ -1535,13 +1540,13 @@ fn snapshot_focused_group_active_border_styled() {
     // the active pane marker and the active bottom-panel border.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 28, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]1[fg:255]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]1[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                        —[fg:252] ▾[fg:252]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]    —[fg:252] ▾[fg:252]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]
-    ├[fg:244] d[fg:153]o[fg:153]t[fg:153]f[fg:153]i[fg:153]l[fg:153]e[fg:153]s[fg:153]
-    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [fg:174,bg:239]c[fg:174,bg:239]l[fg:174,bg:239]a[fg:174,bg:239]u[fg:174,bg:239]d[fg:174,bg:239]e[fg:174,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
-    └[fg:244] m[fg:255]y[fg:255]-[fg:255]a[fg:255]p[fg:255]p[fg:255]
-     [fg:244] [fg:244]  ○[fg:110] [fg:141]c[fg:141]o[fg:141]d[fg:141]e[fg:141]x[fg:141]
-     [fg:244] [fg:244]   [fg:244] [fg:244]W[fg:244]a[fg:244]i[fg:244]t[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]f[fg:244]o[fg:244]r[fg:244] [fg:244]p[fg:244]r[fg:244]o[fg:244]m[fg:244]p[fg:244]t[fg:244]…[fg:244]
+    ├[fg:244] d[fg:153,bold]o[fg:153,bold]t[fg:153,bold]f[fg:153,bold]i[fg:153,bold]l[fg:153,bold]e[fg:153,bold]s[fg:153,bold]
+    │[fg:244] [fg:244]┃[fg:153,bg:239] [bg:239]●[fg:82,bg:239] [bg:239]c[fg:255,bg:239]l[fg:255,bg:239]a[fg:255,bg:239]u[fg:255,bg:239]d[fg:255,bg:239]e[fg:255,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    │[fg:244] [fg:244] [bg:239] [bg:239] [fg:252,bg:239] [fg:252,bg:239]w[fg:252,bg:239]o[fg:252,bg:239]r[fg:252,bg:239]k[fg:252,bg:239]i[fg:252,bg:239]n[fg:252,bg:239]g[fg:252,bg:239]…[fg:252,bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239] [bg:239]
+    └[fg:244] m[fg:255,bold]y[fg:255,bold]-[fg:255,bold]a[fg:255,bold]p[fg:255,bold]p[fg:255,bold]
+     [fg:244] [fg:244]  ○[fg:110] c[fg:255]o[fg:255]d[fg:255]e[fg:255]x[fg:255]
 
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
@@ -1588,7 +1593,7 @@ fn test_pet_enabled_preserves_bottom_panel_border() {
 
     insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @"
      ≡1  ●0  ◎0  ◐0  ○1  ✕0
-    ⓘ                                    — ▾
+    ⓘ ✓ nothing needs you                — ▾
     main: 1 window
     └ project
       ┃ ○ claude

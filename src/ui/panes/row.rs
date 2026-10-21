@@ -1,6 +1,5 @@
 use ratatui::{style::Style, text::Line};
 
-use crate::tmux::PaneStatus;
 use crate::ui::colors::ColorTheme;
 use crate::ui::icons::StatusIcons;
 
@@ -9,24 +8,25 @@ mod branch;
 mod ctx;
 mod status;
 
-use body::{
-    background_hint_row, idle_hint_row, prompt_rows, subagent_rows, task_progress_row,
-    wait_reason_row,
-};
+use body::{detail_row, subagent_row, task_progress_row};
 use branch::branch_ports_row;
-use ctx::{RowCtx, SELECTION_MARKER};
+use ctx::{ATTENTION_MARKER, RowCtx, SELECTION_MARKER};
 #[cfg(test)]
 use status::running_icon_for;
 use status::status_row;
 
 pub(super) use branch::sidebar_remove_marker_col;
 
+/// Lines for one pane: a status row (summary, account, run time), one
+/// detail row (what it is doing or what it needs), then subagents, task
+/// progress and the branch/ports row when there is something to show.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_pane_lines_with_ports(
     pane: &crate::tmux::PaneInfo,
     git_info: &crate::group::PaneGitInfo,
     ports: Option<&[u16]>,
     task_progress: Option<&crate::activity::TaskProgress>,
+    last_activity: Option<&crate::activity::ActivityEntry>,
     selected: bool,
     active: bool,
     width: usize,
@@ -35,62 +35,70 @@ pub(super) fn render_pane_lines_with_ports(
     spinner_frame: usize,
     now: u64,
 ) -> Vec<Line<'static>> {
-    let bg = if selected {
-        Some(theme.selection_bg)
-    } else {
-        None
-    };
-    let apply_bg = |style: Style| match bg {
+    let bg = selected.then_some(theme.selection_bg);
+    let with_bg = |style: Style| match bg {
         Some(c) => style.bg(c),
         None => style,
     };
-    // The left marker `┃` highlights the pane that is currently focused in
-    // tmux (`active`). To keep the active accent compact, it only appears on
-    // the status row and the branch/ports row (when present) — never on
-    // deeper details like task progress or prompt wrapping. The sidebar
-    // cursor position (`selected`) still paints the full pane with the
-    // selection background.
-    let marker_ctx = RowCtx {
-        marker_char: if active { SELECTION_MARKER } else { " " },
-        marker_style: if active {
-            apply_bg(Style::default().fg(theme.accent))
-        } else {
-            apply_bg(Style::default())
-        },
+    // A pane that needs the user carries a bar down every one of its
+    // lines, so it is findable at a glance however long the list is. The
+    // focused pane otherwise gets the thinner accent marker on its first
+    // row only.
+    let needs_you = pane.needs_attention();
+    let attention_color = theme.status_color(&pane.status, true);
+    let (first_marker, first_marker_style) = if needs_you {
+        (
+            ATTENTION_MARKER,
+            with_bg(Style::default().fg(attention_color)),
+        )
+    } else if active {
+        (SELECTION_MARKER, with_bg(Style::default().fg(theme.accent)))
+    } else {
+        (" ", with_bg(Style::default()))
+    };
+    let (rest_marker, rest_marker_style) = if needs_you {
+        (
+            ATTENTION_MARKER,
+            with_bg(Style::default().fg(attention_color)),
+        )
+    } else {
+        (" ", with_bg(Style::default()))
+    };
+    let first_ctx = RowCtx {
+        marker_char: first_marker,
+        marker_style: first_marker_style,
         inner_width: width.saturating_sub(2),
         theme,
         bg,
         active,
     };
-    let plain_ctx = RowCtx {
-        marker_char: " ",
-        marker_style: Style::default(),
+    let ctx = &RowCtx {
+        marker_char: rest_marker,
+        marker_style: rest_marker_style,
         inner_width: width.saturating_sub(2),
         theme,
-        bg: None,
+        bg,
         active,
     };
 
-    let mut out: Vec<Line<'static>> = Vec::with_capacity(8);
-    out.push(status_row(pane, &marker_ctx, icons, spinner_frame, now));
-    if let Some(line) = branch_ports_row(git_info, ports, pane.sidebar_spawned, &marker_ctx) {
+    let mut out: Vec<Line<'static>> = Vec::with_capacity(5);
+    out.push(status_row(pane, &first_ctx, icons, spinner_frame, now));
+    // The branch row must stay directly under the status row: the
+    // worktree remove `×` click target is placed by that offset.
+    let has_ports = ports.is_some_and(|p| !p.is_empty());
+    if (git_info.is_worktree || pane.sidebar_spawned || has_ports)
+        && let Some(line) = branch_ports_row(git_info, ports, pane.sidebar_spawned, ctx)
+    {
         out.push(line);
     }
-    let ctx = &plain_ctx;
+    if let Some(line) = detail_row(pane, last_activity, ctx) {
+        out.push(line);
+    }
+    if let Some(line) = subagent_row(&pane.subagents, ctx) {
+        out.push(line);
+    }
     if let Some(line) = task_progress_row(task_progress, ctx) {
         out.push(line);
-    }
-    out.extend(subagent_rows(&pane.subagents, ctx));
-    if let Some(line) = wait_reason_row(&pane.wait_reason, &pane.status, ctx) {
-        out.push(line);
-    }
-    if let Some(cmd) = pane.bg_shell_cmd.as_deref() {
-        out.push(background_hint_row(ctx, cmd));
-    }
-    if !pane.prompt.is_empty() {
-        out.extend(prompt_rows(pane, ctx));
-    } else if matches!(pane.status, PaneStatus::Idle) {
-        out.push(idle_hint_row(ctx));
     }
     out
 }
@@ -99,6 +107,7 @@ pub(super) fn render_pane_lines_with_ports(
 mod tests {
     use super::*;
     use crate::group::PaneGitInfo;
+    use crate::tmux::PaneStatus;
     use crate::tmux::{AgentType, PaneInfo, PermissionMode, WorktreeMetadata};
     use crate::ui::icons::StatusIcons;
     use crate::ui::text::display_width;
@@ -134,6 +143,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         }
     }
 
@@ -155,51 +166,135 @@ mod tests {
         }
     }
 
-    #[test]
-    fn render_pane_lines_shows_permission_badge() {
+    fn render_text(
+        pane: &PaneInfo,
+        last_activity: Option<&crate::activity::ActivityEntry>,
+    ) -> String {
         let theme = ColorTheme::default();
-        let pane = pane(PermissionMode::Auto, PaneStatus::Running, "");
-        let lines = render_pane_lines_with_ports(
-            &pane,
+        render_pane_lines_with_ports(
+            pane,
             &PaneGitInfo::default(),
             None,
             None,
+            last_activity,
             false,
             false,
-            40,
+            44,
             &StatusIcons::default(),
             &theme,
             0,
-            0,
-        );
+            100,
+        )
+        .iter()
+        .map(line_text)
+        .collect::<Vec<_>>()
+        .join("\n")
+    }
 
-        let status = line_text(&lines[0]);
-        assert!(status.contains(" codex auto"));
+    fn claude_pane(status: PaneStatus) -> PaneInfo {
+        let mut p = pane(PermissionMode::BypassPermissions, status, "");
+        p.agent = AgentType::Claude;
+        p.title = "Fix CSV aliases".into();
+        p.claude = Some(crate::tmux::ClaudeProcess {
+            account: "k1".into(),
+        });
+        p
     }
 
     #[test]
-    fn render_pane_lines_shows_defer_badge() {
+    fn snapshot_running_pane_shows_summary_account_and_current_tool() {
+        let mut p = claude_pane(PaneStatus::Running);
+        p.started_at = Some(40);
+        let entry = crate::activity::ActivityEntry {
+            timestamp: "10:03".into(),
+            tool: "Bash".into(),
+            label: "cargo test".into(),
+        };
+        insta::assert_snapshot!(render_text(&p, Some(&entry)), @"
+        ● Fix CSV aliases                  k1 1m0s
+          Bash cargo test
+        ");
+    }
+
+    #[test]
+    fn snapshot_permission_wait_is_flagged_as_needs_you() {
+        let mut p = claude_pane(PaneStatus::Waiting);
+        p.wait_reason = "permission_prompt".into();
+        insta::assert_snapshot!(render_text(&p, None), @"
+        ▌ ◐ Fix CSV aliases             k1 NEEDS YOU
+        ▌   ▶ needs your permission
+        ");
+    }
+
+    #[test]
+    fn snapshot_finished_turn_is_your_turn_with_reply_summary() {
+        let mut p = claude_pane(PaneStatus::Idle);
+        p.attention = true;
+        p.prompt = "Both fixes are up as PRs. Neither is merged.".into();
+        p.prompt_is_response = true;
+        insta::assert_snapshot!(render_text(&p, None), @"
+        ▌ ○ Fix CSV aliases             k1 YOUR TURN
+        ▌   ▶ Both fixes are up as PRs.
+        ");
+    }
+
+    #[test]
+    fn snapshot_background_pane_collapses_subagents_to_one_line() {
+        let mut p = claude_pane(PaneStatus::Background);
+        p.subagents = vec!["Explore #ab12".into(), "Plan #cd34".into()];
+        insta::assert_snapshot!(render_text(&p, None), @"
+        ◎ Fix CSV aliases                       k1
+          ↳ 2 subagents: Explore, Plan
+        ");
+    }
+
+    #[test]
+    fn snapshot_unhooked_claude_says_status_is_unknown() {
+        let mut p = pane(PermissionMode::Default, PaneStatus::Idle, "");
+        p.agent = AgentType::None;
+        p.title = "Triage ZEN-6863".into();
+        p.claude = Some(crate::tmux::ClaudeProcess {
+            account: "ken".into(),
+        });
+        insta::assert_snapshot!(render_text(&p, None), @"
+        ○ Triage ZEN-6863                      ken
+          no status reported yet
+        ");
+    }
+
+    #[test]
+    fn snapshot_plain_shell_is_one_dim_line() {
+        let mut p = pane(PermissionMode::Default, PaneStatus::Idle, "");
+        p.agent = AgentType::None;
+        p.current_command = "nvim".into();
+        insta::assert_snapshot!(render_text(&p, None), @"  ○ nvim");
+    }
+
+    #[test]
+    fn needs_you_pane_has_attention_bar_on_every_line() {
+        let mut p = claude_pane(PaneStatus::Waiting);
+        p.subagents = vec!["Explore #ab12".into()];
         let theme = ColorTheme::default();
-        let pane = pane(PermissionMode::Defer, PaneStatus::Running, "");
         let lines = render_pane_lines_with_ports(
-            &pane,
+            &p,
             &PaneGitInfo::default(),
             None,
             None,
+            None,
             false,
             false,
-            40,
+            44,
             &StatusIcons::default(),
             &theme,
             0,
             0,
         );
-
-        let status = line_text(&lines[0]);
-        assert!(
-            status.contains(" codex defer"),
-            "defer permission mode should render its badge, got: {status}"
-        );
+        assert_eq!(lines.len(), 3);
+        for line in &lines {
+            assert_eq!(line.spans[0].content, ATTENTION_MARKER);
+            assert_eq!(line.spans[0].style.fg, Some(theme.status_waiting));
+        }
+        assert_eq!(lines[0].spans[2].style.bg, Some(theme.status_waiting));
     }
 
     #[test]
@@ -210,6 +305,7 @@ mod tests {
         let lines = render_pane_lines_with_ports(
             &p,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -247,6 +343,7 @@ mod tests {
         let lines = render_pane_lines_with_ports(
             &p,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -294,6 +391,7 @@ mod tests {
             },
             Some(&ports),
             None,
+            None,
             false,
             false,
             40,
@@ -325,6 +423,7 @@ mod tests {
             },
             Some(&ports),
             None,
+            None,
             false,
             false,
             40,
@@ -355,6 +454,7 @@ mod tests {
         let lines = render_pane_lines_with_ports(
             &pane,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -394,85 +494,6 @@ mod tests {
     }
 
     #[test]
-    fn render_pane_lines_shows_idle_prompt_hint() {
-        let theme = ColorTheme::default();
-        let pane = pane(PermissionMode::Default, PaneStatus::Idle, "");
-        let lines = render_pane_lines_with_ports(
-            &pane,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert_eq!(lines.len(), 2);
-        let hint = line_text(&lines[1]);
-        assert!(hint.contains("Waiting for prompt"));
-    }
-
-    #[test]
-    fn render_pane_lines_shows_bg_command_even_while_running() {
-        // A live background shell must stay visible in the pane
-        // regardless of the agent's current status — running bursts in
-        // the middle of a background task should not make the shell
-        // look like it vanished.
-        let theme = ColorTheme::default();
-        let mut p = pane(PermissionMode::Default, PaneStatus::Running, "");
-        p.bg_shell_cmd = Some("npm run dev".into());
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        let hint = lines.iter().map(line_text).collect::<Vec<_>>().join("\n");
-        assert!(
-            hint.contains("npm run dev"),
-            "bg command must render during running state, got:\n{hint}"
-        );
-    }
-
-    #[test]
-    fn render_pane_lines_shows_bg_command_even_while_idle() {
-        let theme = ColorTheme::default();
-        let mut p = pane(PermissionMode::Default, PaneStatus::Idle, "");
-        p.bg_shell_cmd = Some("cargo watch".into());
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        let joined = lines.iter().map(line_text).collect::<Vec<_>>().join("\n");
-        assert!(
-            joined.contains("cargo watch"),
-            "bg command must render during idle state, got:\n{joined}"
-        );
-    }
-
-    #[test]
     fn render_pane_lines_shows_background_command_when_known() {
         let theme = ColorTheme::default();
         let mut p = pane(PermissionMode::Default, PaneStatus::Background, "");
@@ -480,6 +501,7 @@ mod tests {
         let lines = render_pane_lines_with_ports(
             &p,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -511,6 +533,7 @@ mod tests {
             &PaneGitInfo::default(),
             None,
             None,
+            None,
             false,
             false,
             20,
@@ -531,180 +554,13 @@ mod tests {
     }
 
     #[test]
-    fn render_pane_lines_wraps_prompt_when_present() {
-        let theme = ColorTheme::default();
-        let pane = pane(
-            PermissionMode::BypassPermissions,
-            PaneStatus::Idle,
-            "hello world from codex",
-        );
-        let lines = render_pane_lines_with_ports(
-            &pane,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            18,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 2);
-        let status = line_text(&lines[0]);
-        assert!(status.contains(" codex !"));
-        assert!(!line_text(&lines[1]).contains("Waiting for prompt"));
-    }
-
-    #[test]
-    fn render_pane_lines_shows_single_subagent() {
-        let theme = ColorTheme::default();
-        let mut p = pane(PermissionMode::Default, PaneStatus::Running, "test");
-        p.subagents = vec!["Explore".into()];
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 3);
-        let sub_line = line_text(&lines[1]);
-        assert!(sub_line.contains("└ "));
-        assert!(sub_line.contains("Explore #1"));
-    }
-
-    #[test]
-    fn render_pane_lines_shows_multiple_subagents_tree() {
-        let theme = ColorTheme::default();
-        let mut p = pane(PermissionMode::Default, PaneStatus::Running, "test");
-        p.subagents = vec!["Explore #1".into(), "Plan".into(), "Explore #2".into()];
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 5);
-        assert!(line_text(&lines[1]).contains("├ "));
-        assert!(line_text(&lines[1]).contains("Explore #1"));
-        assert!(line_text(&lines[2]).contains("├ "));
-        assert!(line_text(&lines[2]).contains("Plan #2"));
-        assert!(line_text(&lines[3]).contains("└ "));
-        assert!(line_text(&lines[3]).contains("Explore #2"));
-    }
-
-    #[test]
-    fn render_pane_lines_subagents_before_wait_reason() {
-        let theme = ColorTheme::default();
-        let mut p = pane(PermissionMode::Default, PaneStatus::Waiting, "");
-        p.subagents = vec!["Explore".into()];
-        p.wait_reason = "permission_prompt".into();
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 3);
-        let sub_line = line_text(&lines[1]);
-        assert!(sub_line.contains("Explore #1"));
-        let reason_line = line_text(&lines[2]);
-        assert!(reason_line.contains("permission required"));
-    }
-
-    #[test]
-    fn render_pane_lines_response_shows_arrow() {
-        let theme = ColorTheme::default();
-        let p = pane_with_response(
-            PermissionMode::Default,
-            PaneStatus::Idle,
-            "Task completed successfully",
-            true,
-        );
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 2);
-        let response_line = line_text(&lines[1]);
-        assert!(response_line.contains("▷"));
-        assert!(response_line.contains("Task completed successfully"));
-    }
-
-    #[test]
-    fn render_pane_lines_response_uses_char_wrap() {
-        let theme = ColorTheme::default();
-        let p = pane_with_response(
-            PermissionMode::Default,
-            PaneStatus::Idle,
-            "abcdef ghijk lmnop qrstu vwxyz",
-            true,
-        );
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            false,
-            false,
-            20,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 2);
-        let first = line_text(&lines[1]);
-        assert!(first.contains("▷"));
-        // char-wrap must not trim inter-word spaces like word-wrap does
-        let second = line_text(&lines[2]);
-        assert!(!second.starts_with("│  ghijk"));
-    }
-
-    #[test]
     fn render_pane_lines_normal_prompt_not_detected_as_response() {
         let theme = ColorTheme::default();
         let p = pane(PermissionMode::Default, PaneStatus::Running, "fix the bug");
         let lines = render_pane_lines_with_ports(
             &p,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -720,63 +576,6 @@ mod tests {
         let prompt_line = line_text(&lines[1]);
         assert!(!prompt_line.contains("▷"));
         assert!(prompt_line.contains("fix the bug"));
-    }
-
-    #[test]
-    fn render_pane_lines_shows_task_progress() {
-        use crate::activity::{TaskProgress, TaskStatus};
-        let theme = ColorTheme::default();
-        let p = pane(PermissionMode::Default, PaneStatus::Running, "");
-        let progress = TaskProgress {
-            tasks: vec![
-                ("Task A".into(), TaskStatus::Completed),
-                ("Task B".into(), TaskStatus::InProgress),
-                ("Task C".into(), TaskStatus::Pending),
-            ],
-        };
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            Some(&progress),
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(lines.len() >= 2);
-        let task_line = line_text(&lines[1]);
-        assert!(task_line.contains("✔◼◻"));
-        assert!(task_line.contains("1/3"));
-    }
-
-    #[test]
-    fn render_pane_lines_no_task_line_when_empty() {
-        use crate::activity::TaskProgress;
-        let theme = ColorTheme::default();
-        let p = pane(PermissionMode::Default, PaneStatus::Idle, "");
-        let progress = TaskProgress { tasks: vec![] };
-        let lines = render_pane_lines_with_ports(
-            &p,
-            &PaneGitInfo::default(),
-            None,
-            Some(&progress),
-            false,
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert_eq!(lines.len(), 2);
-        let hint = line_text(&lines[1]);
-        assert!(hint.contains("Waiting for prompt"));
     }
 
     #[test]
@@ -1026,26 +825,13 @@ mod tests {
     }
 
     #[test]
-    fn wait_reason_row_uses_error_color_when_status_is_error() {
-        let theme = ColorTheme::default();
-        let ctx = test_ctx(&theme, 40, false);
-        let line = wait_reason_row("permission_prompt", &PaneStatus::Error, &ctx)
-            .expect("should render reason line");
-        let text_span = line
-            .spans
-            .iter()
-            .find(|s| s.content.contains("permission"))
-            .expect("reason text should be present");
-        assert_eq!(text_span.style.fg, Some(theme.status_error));
-    }
-
-    #[test]
     fn render_pane_lines_selected_applies_background_to_spans() {
         let theme = ColorTheme::default();
         let pane = pane(PermissionMode::Auto, PaneStatus::Running, "do work");
         let lines = render_pane_lines_with_ports(
             &pane,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             true, // selected
@@ -1071,40 +857,13 @@ mod tests {
     }
 
     #[test]
-    fn render_pane_lines_selected_leaves_content_rows_unhighlighted() {
-        let theme = ColorTheme::default();
-        let pane = pane(PermissionMode::Auto, PaneStatus::Running, "do work");
-        let lines = render_pane_lines_with_ports(
-            &pane,
-            &PaneGitInfo::default(),
-            None,
-            None,
-            true, // selected
-            false,
-            40,
-            &StatusIcons::default(),
-            &theme,
-            0,
-            0,
-        );
-
-        assert!(
-            lines
-                .iter()
-                .skip(1)
-                .flat_map(|line| &line.spans)
-                .all(|span| span.style.bg != Some(theme.selection_bg)),
-            "content rows should not carry the selection background"
-        );
-    }
-
-    #[test]
     fn render_pane_lines_active_shows_left_marker_on_status_row() {
         let theme = ColorTheme::default();
         let pane = pane(PermissionMode::Default, PaneStatus::Running, "");
         let lines = render_pane_lines_with_ports(
             &pane,
             &PaneGitInfo::default(),
+            None,
             None,
             None,
             false,
@@ -1145,30 +904,5 @@ mod tests {
             !text.contains(" auto") && !text.contains(" plan") && !text.contains(" !"),
             "default permission mode should not render a badge, got: {text}"
         );
-    }
-
-    #[test]
-    fn prompt_rows_indents_continuation_lines() {
-        let theme = ColorTheme::default();
-        let ctx = test_ctx(&theme, 20, false);
-        let mut p = pane(
-            PermissionMode::Default,
-            PaneStatus::Running,
-            "aaaa bbbb cccc dddd eeee",
-        );
-        p.prompt_is_response = false;
-        let lines = prompt_rows(&p, &ctx);
-        assert!(
-            lines.len() >= 2,
-            "expected prompt to wrap across multiple lines"
-        );
-        for line in &lines {
-            let text = line_text(line);
-            // Each line starts with marker(1) + space(1) + indent(2) = "    " for non-selected.
-            assert!(
-                text.starts_with("    "),
-                "each wrapped line should carry the left padding, got: {text}"
-            );
-        }
     }
 }

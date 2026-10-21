@@ -21,6 +21,9 @@ pub struct PaneRuntimeState {
     /// Used by `refresh_task_progress` to skip the (potentially expensive)
     /// re-parse when the log has not been touched since the previous tick.
     pub task_progress_log_mtime: Option<std::time::SystemTime>,
+    /// Newest tool call in the activity log, shown as what a running
+    /// agent is doing right now.
+    pub last_activity: Option<crate::activity::ActivityEntry>,
 }
 
 #[derive(Debug, Clone)]

@@ -147,6 +147,18 @@ impl AppState {
         (all, running, background, waiting, idle, error)
     }
 
+    /// Panes waiting on the user (open prompt, failure, or a finished turn
+    /// not yet looked at), within the current repo filter.
+    pub fn needs_you_count(&self) -> usize {
+        self.repo_groups
+            .iter()
+            .flat_map(|g| g.panes.iter())
+            .filter(|(pane, git)| {
+                self.global.repo_filter.matches_pane(pane, git) && pane.needs_attention()
+            })
+            .count()
+    }
+
     /// Return list of repo names for the popup: ["All", repo1, repo2, ...].
     /// Sorted case-insensitively so the popup order stays stable even though
     /// the tree itself is ordered by session and window.
@@ -322,6 +334,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         }
     }
 

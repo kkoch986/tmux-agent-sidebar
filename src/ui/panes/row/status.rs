@@ -1,90 +1,175 @@
 use ratatui::{
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
 };
 
 use super::ctx::RowCtx;
-use crate::tmux::PaneStatus;
+use crate::tmux::{AgentType, PaneInfo, PaneStatus, PermissionMode};
+use crate::ui::colors::ON_ATTENTION;
 use crate::ui::icons::StatusIcons;
 use crate::ui::text::{display_width, elapsed_label, truncate_to_width};
 
+/// First line of a pane: status icon and a short summary on the left; the
+/// Claude account, permission badge and run time on the right. A pane that
+/// needs the user is drawn as a solid bar with a `NEEDS YOU` / `YOUR TURN`
+/// label instead of the run time.
 pub(super) fn status_row(
-    pane: &crate::tmux::PaneInfo,
+    pane: &PaneInfo,
     ctx: &RowCtx,
     icons: &StatusIcons,
     spinner_frame: usize,
     now: u64,
 ) -> Line<'static> {
-    use crate::tmux::PermissionMode;
     let theme = ctx.theme;
+    let needs_you = pane.needs_attention();
+    let attention_bg = theme.status_color(&pane.status, true);
+    let bar_ctx = RowCtx {
+        marker_char: ctx.marker_char,
+        marker_style: ctx.marker_style,
+        inner_width: ctx.inner_width,
+        theme,
+        bg: Some(attention_bg),
+        active: ctx.active,
+    };
+    let ctx = if needs_you { &bar_ctx } else { ctx };
 
     let (icon, pulse_color) = running_icon_for(&pane.status, spinner_frame, icons);
-    let icon_color =
-        pulse_color.unwrap_or_else(|| theme.status_color(&pane.status, pane.attention));
-    let title_raw: &str = if pane.session_name.is_empty() {
-        pane.agent.label()
+    let icon_style = if needs_you {
+        Style::default().fg(ON_ATTENTION)
     } else {
-        &pane.session_name
+        Style::default().fg(pulse_color.unwrap_or_else(|| theme.status_color(&pane.status, false)))
     };
-    let badge = pane.permission_mode.badge();
-    let elapsed = elapsed_label(pane.started_at, now);
-
-    let title_fg = theme.agent_color(&pane.agent);
-    let elapsed_fg = if pane.status.is_active() {
-        theme.text_active
+    let summary_style = if needs_you {
+        Style::default()
+            .fg(ON_ATTENTION)
+            .add_modifier(Modifier::BOLD)
+    } else if pane.agent == AgentType::None && pane.claude.is_none() {
+        Style::default().fg(theme.text_inactive)
     } else {
-        theme.text_muted
+        Style::default().fg(theme.text_active)
     };
 
-    let badge_extra = if badge.is_empty() { 0 } else { 1 };
-    let fixed_width = display_width(icon) + 1 + badge_extra + display_width(badge);
-    // User-supplied session names (set via `/rename`) can be arbitrarily
-    // long; cap the title to the space left after reserving room for the
-    // icon, badge, and elapsed label so they stay visible instead of
-    // being pushed off-screen.
-    let elapsed_width = display_width(&elapsed);
-    let elapsed_gap = usize::from(elapsed_width > 0);
-    let title_budget = ctx
-        .inner_width
-        .saturating_sub(fixed_width + elapsed_gap + elapsed_width);
-    let title = truncate_to_width(title_raw, title_budget);
-
-    let left_width = fixed_width + display_width(&title);
-    let available_for_elapsed = ctx.inner_width.saturating_sub(left_width);
-    let elapsed = truncate_to_width(&elapsed, available_for_elapsed);
-    let elapsed_width = display_width(&elapsed);
-
-    let mut left_spans: Vec<Span<'static>> = Vec::with_capacity(3);
-    left_spans.push(Span::styled(
-        icon.to_string(),
-        ctx.apply_bg(Style::default().fg(icon_color)),
-    ));
-    left_spans.push(Span::styled(
-        format!(" {}", title),
-        ctx.apply_bg(Style::default().fg(title_fg)),
-    ));
+    let mut right: Vec<(String, Style)> = Vec::new();
+    let badge = permission_badge(&pane.permission_mode);
     if !badge.is_empty() {
-        let badge_color = match pane.permission_mode {
-            PermissionMode::BypassPermissions => theme.badge_danger,
-            PermissionMode::Auto => theme.badge_auto,
-            PermissionMode::DontAsk => theme.badge_auto,
-            PermissionMode::Plan => theme.badge_plan,
-            PermissionMode::AcceptEdits => theme.badge_auto,
-            PermissionMode::Defer => theme.badge_auto,
-            PermissionMode::Default => theme.text_muted,
+        let fg = if needs_you {
+            ON_ATTENTION
+        } else {
+            badge_color(&pane.permission_mode, ctx)
         };
-        left_spans.push(Span::styled(
-            format!(" {}", badge),
-            ctx.apply_bg(Style::default().fg(badge_color)),
+        right.push((badge.to_string(), Style::default().fg(fg)));
+    }
+    let account = pane.account();
+    if !account.is_empty() {
+        let fg = if needs_you {
+            ON_ATTENTION
+        } else {
+            theme.agent_claude
+        };
+        right.push((account.to_string(), Style::default().fg(fg)));
+    }
+    if needs_you {
+        right.push((
+            attention_label(pane).to_string(),
+            Style::default()
+                .fg(ON_ATTENTION)
+                .add_modifier(Modifier::BOLD),
         ));
+    } else {
+        let elapsed = elapsed_label(pane.started_at, now);
+        if !elapsed.is_empty() {
+            let fg = if pane.status.is_active() {
+                theme.text_active
+            } else {
+                theme.text_muted
+            };
+            right.push((elapsed, Style::default().fg(fg)));
+        }
     }
 
-    let right_spans = vec![Span::styled(
-        elapsed,
-        ctx.apply_bg(Style::default().fg(elapsed_fg)),
-    )];
+    // The right-hand labels are short and carry the state, so they keep
+    // their room and the summary truncates instead.
+    let mut right_spans: Vec<Span<'static>> = Vec::new();
+    let mut right_width = 0;
+    for (text, style) in right {
+        let gap = usize::from(right_width > 0);
+        right_width += gap + display_width(&text);
+        if gap > 0 {
+            right_spans.push(Span::styled(" ", ctx.apply_bg(Style::default())));
+        }
+        right_spans.push(Span::styled(text, ctx.apply_bg(style)));
+    }
+    let icon_width = display_width(icon) + 1;
+    let right_width = if icon_width + right_width + 1 > ctx.inner_width {
+        right_spans.clear();
+        0
+    } else {
+        right_width
+    };
+    let summary = truncate_to_width(
+        &pane_summary(pane),
+        ctx.inner_width.saturating_sub(icon_width + right_width + 1),
+    );
 
-    ctx.row_line_split(left_spans, left_width, right_spans, elapsed_width)
+    let left_width = icon_width + display_width(&summary);
+    let left_spans = vec![
+        Span::styled(icon.to_string(), ctx.apply_bg(icon_style)),
+        Span::styled(" ", ctx.apply_bg(Style::default())),
+        Span::styled(summary, ctx.apply_bg(summary_style)),
+    ];
+    ctx.row_line_split(left_spans, left_width, right_spans, right_width)
+}
+
+/// Short name for what the pane is: the session name a user set with
+/// `/rename`, else the title Claude Code keeps current, else the program.
+pub(super) fn pane_summary(pane: &PaneInfo) -> String {
+    if pane.agent == AgentType::None && pane.claude.is_none() {
+        return if pane.current_command.is_empty() {
+            "shell".to_string()
+        } else {
+            pane.current_command.clone()
+        };
+    }
+    if !pane.session_name.is_empty() {
+        return pane.session_name.clone();
+    }
+    if !pane.title.is_empty() {
+        return pane.title.clone();
+    }
+    match pane.agent {
+        AgentType::None => crate::tmux::CLAUDE_AGENT.to_string(),
+        ref agent => agent.label().to_string(),
+    }
+}
+
+fn attention_label(pane: &PaneInfo) -> &'static str {
+    match pane.status {
+        PaneStatus::Error => "FAILED",
+        PaneStatus::Waiting => "NEEDS YOU",
+        _ => "YOUR TURN",
+    }
+}
+
+/// Bypass is how most sessions run, so it would only add noise; the
+/// other modes change how the agent behaves and stay visible.
+fn permission_badge(mode: &PermissionMode) -> &str {
+    match mode {
+        PermissionMode::BypassPermissions => "",
+        other => other.badge(),
+    }
+}
+
+fn badge_color(mode: &PermissionMode, ctx: &RowCtx) -> Color {
+    let theme = ctx.theme;
+    match mode {
+        PermissionMode::BypassPermissions => theme.badge_danger,
+        PermissionMode::Plan => theme.badge_plan,
+        PermissionMode::Auto
+        | PermissionMode::DontAsk
+        | PermissionMode::AcceptEdits
+        | PermissionMode::Defer => theme.badge_auto,
+        PermissionMode::Default => theme.text_muted,
+    }
 }
 
 pub(super) fn running_icon_for<'a>(

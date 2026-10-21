@@ -88,8 +88,17 @@ pub(super) fn render_secondary_header<'a>(
     };
     let repo_btn_width = display_width(&repo_label) + 2; // label + space + arrow
 
-    let gap = (width as usize).saturating_sub(repo_btn_width + notices_width);
-    let repo_button_col = Some((notices_width + gap) as u16);
+    let mut banner = needs_you_banner(state);
+    let mut banner_width: usize = banner.iter().map(|s| display_width(&s.content)).sum();
+    // The all-clear line is a nicety; it gives way before the repo button.
+    if state.needs_you_count() == 0
+        && banner_width + repo_btn_width + notices_width + 1 > width as usize
+    {
+        banner.clear();
+        banner_width = 0;
+    }
+    let gap = (width as usize).saturating_sub(repo_btn_width + notices_width + banner_width);
+    let repo_button_col = Some((notices_width + banner_width + gap) as u16);
 
     let mut spans: Vec<Span<'a>> = Vec::new();
     if has_notices_info {
@@ -98,12 +107,32 @@ pub(super) fn render_secondary_header<'a>(
     } else {
         spans.push(Span::raw("  "));
     }
+    spans.extend(banner);
     spans.push(Span::raw(" ".repeat(gap)));
     spans.push(Span::styled(repo_label, repo_style));
     spans.push(Span::raw(" "));
     spans.push(Span::styled(repo_icon, repo_style));
 
     (Line::from(spans), notices_button_col, repo_button_col)
+}
+
+/// A solid `▶ 2 NEED YOU` block whenever any pane is waiting on the user,
+/// so the count is visible without scanning the list.
+fn needs_you_banner<'a>(state: &AppState) -> Vec<Span<'a>> {
+    let theme = &state.theme;
+    match state.needs_you_count() {
+        0 => vec![Span::styled(
+            "✓ nothing needs you",
+            Style::default().fg(theme.text_inactive),
+        )],
+        n => vec![Span::styled(
+            format!(" ▶ {n} NEED{} YOU ", if n == 1 { "S" } else { "" }),
+            Style::default()
+                .fg(crate::ui::colors::ON_ATTENTION)
+                .bg(theme.status_waiting)
+                .add_modifier(ratatui::style::Modifier::BOLD),
+        )],
+    }
 }
 
 #[cfg(test)]
@@ -135,7 +164,7 @@ mod tests {
         });
 
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"ⓘ ✓ nothing needs you      — ▾");
     }
 
     #[test]
@@ -163,7 +192,7 @@ mod tests {
     fn snapshot_secondary_header_without_notices_info() {
         let state = AppState::new(String::new());
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"                           — ▾");
+        insta::assert_snapshot!(text, @"  ✓ nothing needs you      — ▾");
     }
 
     #[test]
@@ -174,7 +203,7 @@ mod tests {
             latest_version: "0.2.7".into(),
         });
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"ⓘ ✓ nothing needs you      — ▾");
     }
 
     #[test]
@@ -185,7 +214,7 @@ mod tests {
             hooks: vec!["SessionStart".into()],
         }];
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"ⓘ ✓ nothing needs you      — ▾");
     }
 
     #[test]
@@ -200,7 +229,7 @@ mod tests {
             hooks: vec!["SessionStart".into()],
         }];
         let text = line_text(&render_secondary_header(&state, 30).0);
-        insta::assert_snapshot!(text, @"ⓘ                          — ▾");
+        insta::assert_snapshot!(text, @"ⓘ ✓ nothing needs you      — ▾");
     }
 
     // ─── render_filter_bar tests ──────────────────────────────
@@ -249,6 +278,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         };
         let pane2 = crate::tmux::PaneInfo {
             pane_id: "%3".into(),
@@ -270,6 +301,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         };
         let mut state = make_state_with_groups(vec![crate::group::RepoGroup {
             name: "project".into(),
@@ -353,7 +386,7 @@ mod tests {
 
         let (line, notices_col, repo_col) = render_secondary_header(&state, 28);
         let text = line_text(&line);
-        insta::assert_snapshot!(text, @"ⓘ                        — ▾");
+        insta::assert_snapshot!(text, @"ⓘ ✓ nothing needs you    — ▾");
         // Click-target columns are layout state, not visible characters,
         // so they stay as direct equality checks alongside the snapshot.
         assert_eq!(notices_col, Some(0));

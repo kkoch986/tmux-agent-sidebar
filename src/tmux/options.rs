@@ -92,6 +92,11 @@ pub const SIDEBAR_BOTTOM_HEIGHT: &str = "@sidebar_bottom_height";
 pub const SIDEBAR_PET: &str = "@sidebar_pet";
 pub const SIDEBAR_NOTIFICATIONS: &str = "@sidebar_notifications";
 pub const SIDEBAR_NOTIFICATIONS_EVENTS: &str = "@sidebar_notifications_events";
+/// When `on`, the sidebar shows every tmux pane — including plain shells,
+/// editors, and other non-agent panes — instead of only agent panes.
+/// Defaults to `off` so existing behavior is preserved.
+pub const SIDEBAR_SHOW_ALL_PANES: &str = "@sidebar_show_all_panes";
+pub const SIDEBAR_CLAUDE_DEFAULT_ACCOUNT: &str = "@sidebar_claude_default_account";
 
 /// Deploys section: `on`/`off`, the case-insensitive substring a GitHub Actions
 /// workflow name must contain to count as a deploy, how many minutes a finished

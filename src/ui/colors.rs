@@ -5,6 +5,10 @@ use crate::tmux::{self, AgentType, PaneStatus};
 /// Runtime color theme, loaded from tmux @sidebar_color_* variables on startup.
 /// Overrides may be xterm-256 indexes or six-digit RGB hex values.
 /// Falls back to defaults if tmux variables are not set.
+/// Text drawn on top of a status color, as on the bar marking a pane
+/// that needs the user. Black reads on every default status color.
+pub const ON_ATTENTION: Color = Color::Indexed(16);
+
 #[derive(Debug, Clone)]
 pub struct ColorTheme {
     /// Accent color shared by every "active / focused" affordance:
@@ -165,6 +169,9 @@ impl ColorTheme {
             AgentType::Claude => self.agent_claude,
             AgentType::Codex => self.agent_codex,
             AgentType::OpenCode => self.agent_opencode,
+            // Agentless panes get the muted color so they don't look like a
+            // real agent row.
+            AgentType::None => self.text_inactive,
             AgentType::Unknown => self.status_unknown,
         }
     }
@@ -243,6 +250,7 @@ mod tests {
         assert_eq!(theme.agent_color(&AgentType::Claude), Color::Indexed(174));
         assert_eq!(theme.agent_color(&AgentType::Codex), Color::Indexed(141));
         assert_eq!(theme.agent_color(&AgentType::OpenCode), Color::Indexed(117));
+        assert_eq!(theme.agent_color(&AgentType::None), theme.text_inactive);
         assert_eq!(theme.agent_color(&AgentType::Unknown), theme.status_unknown);
     }
 

@@ -4,10 +4,9 @@ use ratatui::{
 };
 
 use super::ctx::RowCtx;
-use crate::tmux::PaneStatus;
-use crate::ui::text::{
-    display_width, truncate_to_width, wait_reason_label, wrap_text, wrap_text_char,
-};
+use crate::activity::ActivityEntry;
+use crate::tmux::{AgentType, PaneInfo, PaneStatus};
+use crate::ui::text::{display_width, truncate_to_width, wait_reason_label};
 
 pub(super) fn task_progress_row(
     task_progress: Option<&crate::activity::TaskProgress>,
@@ -34,6 +33,7 @@ pub(super) fn task_progress_row(
         progress.completed_count(),
         progress.total()
     );
+    let summary = truncate_to_width(&summary, ctx.inner_width);
     let summary_dw = display_width(&summary);
     let task_color = ctx.theme.task_progress;
     Some(ctx.row_line(
@@ -45,144 +45,186 @@ pub(super) fn task_progress_row(
     ))
 }
 
-pub(super) fn subagent_rows(subagents: &[String], ctx: &RowCtx) -> Vec<Line<'static>> {
-    if subagents.is_empty() {
-        return Vec::new();
-    }
-    let theme = ctx.theme;
-    let subagent_color = theme.subagent;
-    let tree_color = theme.text_muted;
-    let last_idx = subagents.len() - 1;
-    let mut out = Vec::with_capacity(subagents.len());
-    for (i, sa) in subagents.iter().enumerate() {
-        let connector = if i == last_idx { "└ " } else { "├ " };
-        let numbered = if sa.contains('#') {
-            sa.clone()
-        } else {
-            format!("{} #{}", sa, i + 1)
-        };
-        let prefix = format!("  {}", connector);
-        let prefix_dw = display_width(&prefix);
-        let max_sa_w = ctx.inner_width.saturating_sub(prefix_dw);
-        let truncated_sa = truncate_to_width(&numbered, max_sa_w);
-        let text_dw = prefix_dw + display_width(&truncated_sa);
-        out.push(ctx.row_line(
-            vec![
-                Span::styled(prefix, ctx.apply_bg(Style::default().fg(tree_color))),
-                Span::styled(
-                    truncated_sa,
-                    ctx.apply_bg(Style::default().fg(subagent_color)),
-                ),
-            ],
-            text_dw,
-        ));
-    }
-    out
-}
-
-pub(super) fn wait_reason_row(
-    wait_reason: &str,
-    status: &PaneStatus,
+/// One line saying what the pane is doing now, or what it needs from the
+/// user. `None` for plain shells, and for idle agents with nothing to say.
+pub(super) fn detail_row(
+    pane: &PaneInfo,
+    last_activity: Option<&ActivityEntry>,
     ctx: &RowCtx,
 ) -> Option<Line<'static>> {
-    if wait_reason.is_empty() {
+    let theme = ctx.theme;
+    let attention = Style::default()
+        .fg(theme.status_color(&pane.status, true))
+        .add_modifier(Modifier::BOLD);
+
+    let (text, style) = if pane.is_unhooked_claude() {
+        (
+            "no status reported yet".to_string(),
+            Style::default().fg(theme.text_inactive),
+        )
+    } else if pane.agent == AgentType::None {
+        return None;
+    } else {
+        match pane.status {
+            PaneStatus::Waiting => (
+                format!("▶ {}", waiting_reason(&pane.wait_reason)),
+                attention,
+            ),
+            PaneStatus::Error => {
+                let mut reason = wait_reason_label(&pane.wait_reason);
+                if reason.is_empty() {
+                    reason = response_summary(&pane.prompt);
+                }
+                if reason.is_empty() {
+                    reason = "stopped with an error".to_string();
+                }
+                (format!("✕ {reason}"), attention)
+            }
+            _ if pane.attention => {
+                let said = response_summary(&pane.prompt);
+                let text = if said.is_empty() {
+                    "▶ finished".to_string()
+                } else {
+                    format!("▶ {said}")
+                };
+                (text, attention)
+            }
+            PaneStatus::Running => (
+                running_detail(pane, last_activity),
+                Style::default().fg(theme.text_muted),
+            ),
+            PaneStatus::Background => (
+                background_detail(pane)?,
+                Style::default().fg(theme.status_running),
+            ),
+            PaneStatus::Idle | PaneStatus::Unknown => {
+                let said = response_summary(&pane.prompt);
+                if said.is_empty() {
+                    return None;
+                }
+                (said, Style::default().fg(theme.text_inactive))
+            }
+        }
+    };
+
+    let text = truncate_to_width(&format!("  {text}"), ctx.inner_width);
+    let width = display_width(&text);
+    Some(ctx.row_line(vec![Span::styled(text, ctx.apply_bg(style))], width))
+}
+
+/// Subagents on one line (`↳ 2 subagents: Explore, Plan`) rather than a
+/// line each, so a busy pane doesn't push the rest of the list down.
+pub(super) fn subagent_row(subagents: &[String], ctx: &RowCtx) -> Option<Line<'static>> {
+    if subagents.is_empty() {
         return None;
     }
-    let reason = wait_reason_label(wait_reason);
-    let text = format!("  {}", reason);
-    let text_dw = display_width(&text);
-    let reason_color = if matches!(status, PaneStatus::Error) {
-        ctx.theme.status_error
+    let names: Vec<&str> = subagents
+        .iter()
+        .map(|s| s.split(" #").next().unwrap_or(s))
+        .collect();
+    let label = if names.len() == 1 {
+        format!("  ↳ subagent: {}", names[0])
     } else {
-        ctx.theme.wait_reason
+        format!("  ↳ {} subagents: {}", names.len(), names.join(", "))
     };
+    let text = truncate_to_width(&label, ctx.inner_width);
+    let width = display_width(&text);
     Some(ctx.row_line(
         vec![Span::styled(
             text,
-            ctx.apply_bg(Style::default().fg(reason_color)),
+            ctx.apply_bg(Style::default().fg(ctx.theme.subagent)),
         )],
-        text_dw,
+        width,
     ))
 }
 
-pub(super) fn background_hint_row(ctx: &RowCtx, cmd: &str) -> Line<'static> {
-    const PREFIX: &str = "  $ ";
-    let room = ctx.inner_width.saturating_sub(display_width(PREFIX));
-    let shown = truncate_to_width(cmd.trim(), room);
-    let text = format!("{PREFIX}{shown}");
-    let text_dw = display_width(&text);
-    ctx.row_line(
-        vec![Span::styled(
-            text,
-            ctx.apply_bg(Style::default().fg(ctx.theme.status_running)),
-        )],
-        text_dw,
-    )
+fn waiting_reason(wait_reason: &str) -> String {
+    match wait_reason {
+        "" => "waiting for you".to_string(),
+        "permission_prompt" => "needs your permission".to_string(),
+        "elicitation_dialog" => "asking you a question".to_string(),
+        "idle_prompt" => "waiting for your reply".to_string(),
+        other => wait_reason_label(other),
+    }
 }
 
-pub(super) fn prompt_rows(pane: &crate::tmux::PaneInfo, ctx: &RowCtx) -> Vec<Line<'static>> {
-    let theme = ctx.theme;
-    let is_response = pane.prompt_is_response;
-    let prompt_color = if ctx.active {
-        theme.text_active
-    } else {
-        theme.text_inactive
-    };
-    let wrap_width = ctx.inner_width.saturating_sub(2);
-    let wrapped = if is_response {
-        wrap_text_char(&pane.prompt, wrap_width, 3)
-    } else {
-        wrap_text(&pane.prompt, wrap_width, 3)
-    };
-
-    let mut out = Vec::with_capacity(wrapped.len());
-    for (li, wl) in wrapped.iter().enumerate() {
-        if is_response && li == 0 {
-            let arrow_color = theme.response_arrow;
-            let text_dw = 2 + display_width(wl); // "▷ " width
-            out.push(ctx.row_line(
-                vec![
-                    Span::styled(
-                        "▷ ",
-                        ctx.apply_bg(
-                            Style::default()
-                                .fg(arrow_color)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                    ),
-                    Span::styled(wl.clone(), ctx.apply_bg(Style::default().fg(prompt_color))),
-                ],
-                text_dw,
-            ));
+fn running_detail(pane: &PaneInfo, last_activity: Option<&ActivityEntry>) -> String {
+    if let Some(entry) = last_activity {
+        let tool = short_tool_name(&entry.tool);
+        let label = entry.label.trim();
+        return if label.is_empty() {
+            tool
         } else {
-            let indent = "  ";
-            let text = format!("{}{}", indent, wl);
-            let text_dw = display_width(&text);
-            out.push(ctx.row_line(
-                vec![Span::styled(
-                    text,
-                    ctx.apply_bg(Style::default().fg(prompt_color)),
-                )],
-                text_dw,
-            ));
+            format!("{tool} {label}")
+        };
+    }
+    if !pane.prompt.is_empty() && !pane.prompt_is_response {
+        return format!("› {}", pane.prompt);
+    }
+    "working…".to_string()
+}
+
+/// `None` when subagents are the background work: their own row says so.
+fn background_detail(pane: &PaneInfo) -> Option<String> {
+    if let Some(cmd) = pane.bg_shell_cmd.as_deref() {
+        return Some(format!("$ {}", cmd.trim()));
+    }
+    pane.subagents
+        .is_empty()
+        .then(|| "running in the background".to_string())
+}
+
+/// `mcp__linear__save_issue` → `linear save_issue`.
+fn short_tool_name(tool: &str) -> String {
+    match tool.strip_prefix("mcp__") {
+        Some(rest) => rest.replacen("__", " ", 1),
+        None => tool.to_string(),
+    }
+}
+
+/// The opening sentence of an agent's last reply, without markdown, so it
+/// reads as a one-line summary.
+pub(super) fn response_summary(text: &str) -> String {
+    let plain: String = text.chars().filter(|c| !matches!(c, '*' | '`')).collect();
+    let plain = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+    let plain = plain
+        .trim_start_matches(['#', ' '])
+        .trim_start_matches("- ")
+        .to_string();
+    const MIN_SENTENCE: usize = 12;
+    for (i, _) in plain.match_indices(['.', '?', '!', ':']) {
+        let after = plain[i + 1..].chars().next();
+        if i >= MIN_SENTENCE && after.is_none_or(char::is_whitespace) {
+            return plain[..=i].trim_end_matches(':').to_string();
         }
     }
-    out
+    plain
 }
 
-pub(super) fn idle_hint_row(ctx: &RowCtx) -> Line<'static> {
-    let text = "  Waiting for prompt…";
-    let text_dw = display_width(text);
-    let idle_color = if ctx.active {
-        ctx.theme.text_active
-    } else {
-        ctx.theme.text_inactive
-    };
-    ctx.row_line(
-        vec![Span::styled(
-            text.to_string(),
-            ctx.apply_bg(Style::default().fg(idle_color)),
-        )],
-        text_dw,
-    )
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn response_summary_keeps_first_sentence_without_markdown() {
+        assert_eq!(
+            response_summary("Both code fixes are up as PRs. Neither is merged.  - **typo**"),
+            "Both code fixes are up as PRs."
+        );
+        assert_eq!(
+            response_summary("PR #26794 is merged (`d3c94703f`), and the build is running."),
+            "PR #26794 is merged (d3c94703f), and the build is running."
+        );
+        assert_eq!(response_summary("Done"), "Done");
+        assert_eq!(response_summary(""), "");
+    }
+
+    #[test]
+    fn short_tool_name_compacts_mcp_tools() {
+        assert_eq!(
+            short_tool_name("mcp__linear__save_issue"),
+            "linear save_issue"
+        );
+        assert_eq!(short_tool_name("Bash"), "Bash");
+    }
 }

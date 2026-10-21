@@ -124,7 +124,7 @@ fn test_running_icon_blink_off() {
 
     insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
     ╭ Activity │ Git ──────────╮
@@ -154,7 +154,7 @@ fn test_running_spinner_frame_advances() {
 
     insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●1  ◎0  ◐0  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     main: 1 window
     └ project
     ╭ Activity │ Git ──────────╮
@@ -183,9 +183,9 @@ fn test_waiting_icon() {
 
     insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●0  ◎0  ◐1  ○0  ✕0
-    ⓘ                        — ▾
+    ⓘ  ▶ 1 NEEDS YOU         — ▾
     main: 1 window
-    └ project
+    └ ▶ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -212,9 +212,9 @@ fn test_error_icon() {
 
     insta::assert_snapshot!(render_to_string(&mut state, 28, 25), @"
      ≡1  ●0  ◎0  ◐0  ○0  ✕1
-    ⓘ                        — ▾
+    ⓘ  ▶ 1 NEEDS YOU         — ▾
     main: 1 window
-    └ project
+    └ ▶ project
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -306,10 +306,10 @@ fn test_agents_auto_scroll_up_shows_group_header() {
     // scrolling back up to the first agent.
     insta::assert_snapshot!(render_to_string(&mut state, 28, 26), @"
      ≡8  ●0  ◎0  ◐0  ○8  ✕0
-    ⓘ                        — ▾
+    ⓘ ✓ nothing needs you    — ▾
     └ project
         ○ claude
-          Waiting for prompt…
+      ┃ ○ claude
     ╭ Activity │ Git ──────────╮
     │      No activity yet     │
     ╰──────────────────────────╯
@@ -346,14 +346,12 @@ fn repo_popup_renders_repo_names_when_open() {
     // repo names when opened.
     insta::assert_snapshot!(render_to_string(&mut state, 40, 30), @"
      ≡2  ●0  ◎0  ◐0  ○2  ✕0
-    ⓘ                                    — ▾
+    ⓘ ✓ nothing needs you                — ▾
     main: 2 windows              ┌─────────┐
     ├ frontend                   │ All     │
     │ ┃ ○ claude                 │ project │
-    │     Waiting for prompt…    └─────────┘
-    └ backend
+    └ backend                    └─────────┘
       ┃ ○ claude
-          Waiting for prompt…
     ╭ Activity │ Git ──────────────────────╮
     │            No activity yet           │
     ╰──────────────────────────────────────╯
@@ -395,14 +393,14 @@ fn repo_popup_highlights_selected_entry_with_background() {
     // background (bg:239) on each cell of the entry.
     insta::assert_snapshot!(render_to_styled_string(&mut state, 40, 30), @"
      ≡[fg:111]2[fg:255]  ●[fg:245]0[fg:245]  ◎[fg:245]0[fg:245]  ◐[fg:245]0[fg:245]  ○[fg:245]2[fg:255]  ✕[fg:245]0[fg:245]
-    ⓘ[fg:221]                                    —[fg:255] ▾[fg:255]
+    ⓘ[fg:221] ✓[fg:244] [fg:244]n[fg:244]o[fg:244]t[fg:244]h[fg:244]i[fg:244]n[fg:244]g[fg:244] [fg:244]n[fg:244]e[fg:244]e[fg:244]d[fg:244]s[fg:244] [fg:244]y[fg:244]o[fg:244]u[fg:244]                —[fg:255] ▾[fg:255]
     m[fg:153]a[fg:153]i[fg:153]n[fg:153]:[fg:153] [fg:153]2[fg:153] [fg:153]w[fg:153]i[fg:153]n[fg:153]d[fg:153]o[fg:153]w[fg:153]s[fg:153]              ┌[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┐[fg:153]
-    ├[fg:244] f[fg:153]r[fg:153]o[fg:153]n[fg:153]t[fg:153]e[fg:153]n[fg:153]d[fg:153]                   │[fg:153] [fg:255]A[fg:255]l[fg:255]l[fg:255] [fg:255] [fg:255] [fg:255] [fg:255] [fg:255]│[fg:153]
-    │[fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]                 │[fg:153] [fg:252]p[fg:252]r[fg:252]o[fg:252]j[fg:252]e[fg:252]c[fg:252]t[fg:252] [fg:252]│[fg:153]
-    │[fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]    └[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┘[fg:153]
-    └[fg:244] b[fg:153]a[fg:153]c[fg:153]k[fg:153]e[fg:153]n[fg:153]d[fg:153]
-     [fg:244] [fg:244]┃[fg:153] ○[fg:110] [fg:174]c[fg:174]l[fg:174]a[fg:174]u[fg:174]d[fg:174]e[fg:174]
-     [fg:244] [fg:244]   [fg:255] [fg:255]W[fg:255]a[fg:255]i[fg:255]t[fg:255]i[fg:255]n[fg:255]g[fg:255] [fg:255]f[fg:255]o[fg:255]r[fg:255] [fg:255]p[fg:255]r[fg:255]o[fg:255]m[fg:255]p[fg:255]t[fg:255]…[fg:255]
+    ├[fg:244] f[fg:153,bold]r[fg:153,bold]o[fg:153,bold]n[fg:153,bold]t[fg:153,bold]e[fg:153,bold]n[fg:153,bold]d[fg:153,bold]                   │[fg:153] [fg:255]A[fg:255]l[fg:255]l[fg:255] [fg:255] [fg:255] [fg:255] [fg:255] [fg:255]│[fg:153]
+    │[fg:244] [fg:244]┃[fg:153] ○[fg:110] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]                 │[fg:153] [fg:252]p[fg:252]r[fg:252]o[fg:252]j[fg:252]e[fg:252]c[fg:252]t[fg:252] [fg:252]│[fg:153]
+    └[fg:244] b[fg:153,bold]a[fg:153,bold]c[fg:153,bold]k[fg:153,bold]e[fg:153,bold]n[fg:153,bold]d[fg:153,bold]                    └[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]─[fg:153]┘[fg:153]
+     [fg:244] [fg:244]┃[fg:153] ○[fg:110] c[fg:255]l[fg:255]a[fg:255]u[fg:255]d[fg:255]e[fg:255]
+
+
 
     ╭[fg:240] [fg:240]A[fg:153]c[fg:153]t[fg:153]i[fg:153]v[fg:153]i[fg:153]t[fg:153]y[fg:153] [fg:240]│[fg:240] [fg:240]G[fg:252]i[fg:252]t[fg:252] [fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]─[fg:240]╮[fg:240]
     │[fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240] [fg:240]│[fg:240]

@@ -30,6 +30,40 @@ pub struct PaneInfo {
     /// pane status is `Background` (or `Running` with a backgrounded shell
     /// still alive) so the row body can surface the actual command.
     pub bg_shell_cmd: Option<String>,
+    /// tmux `pane_title` minus any leading status glyph. Claude Code keeps
+    /// it set to a short summary of the session ("Fix CSV aliases").
+    pub title: String,
+    /// The Claude process running in this pane, found from the process
+    /// tree rather than hooks, so it is known even when hooks are missing.
+    pub claude: Option<ClaudeProcess>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ClaudeProcess {
+    /// Account label from the process's `CLAUDE_CONFIG_DIR`: `~/.claude-k1`
+    /// reads as `k1`, and the default `~/.claude` as
+    /// `@sidebar_claude_default_account`. Empty when it cannot be read.
+    pub account: String,
+}
+
+impl PaneInfo {
+    /// Whether the user has to act: an open prompt, a failure, or a
+    /// finished turn they have not looked at yet.
+    pub fn needs_attention(&self) -> bool {
+        self.attention || matches!(self.status, PaneStatus::Waiting | PaneStatus::Error)
+    }
+
+    /// A Claude process with no hook state: the sidebar's Claude plugin is
+    /// not installed for the config dir this session runs under, so its
+    /// status can never be known.
+    pub fn is_unhooked_claude(&self) -> bool {
+        self.agent == AgentType::None && self.claude.is_some()
+    }
+
+    /// Account label for Claude panes, empty otherwise.
+    pub fn account(&self) -> &str {
+        self.claude.as_ref().map_or("", |c| c.account.as_str())
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -92,6 +126,9 @@ pub enum AgentType {
     Claude,
     Codex,
     OpenCode,
+    /// No agent running in this pane — a plain shell, editor, etc.
+    /// Shown only when `@sidebar_show_all_panes` is `on`.
+    None,
     #[allow(dead_code)]
     Unknown,
 }
@@ -116,13 +153,15 @@ pub struct SessionInfo {
 }
 
 impl AgentType {
-    /// Parse the agent label set by hooks. Returns `None` for unknown
-    /// values so callers can skip non-agent panes.
+    /// Parse the agent label set by hooks. Empty strings map to
+    /// `AgentType::None` (no agent running). Truly unknown labels
+    /// return `None` so callers can skip them.
     pub fn from_label(s: &str) -> Option<Self> {
         match s {
             CLAUDE_AGENT => Some(Self::Claude),
             CODEX_AGENT => Some(Self::Codex),
             OPENCODE_AGENT => Some(Self::OpenCode),
+            "" => Some(Self::None),
             _ => None,
         }
     }
@@ -132,6 +171,7 @@ impl AgentType {
             Self::Claude => CLAUDE_AGENT,
             Self::Codex => CODEX_AGENT,
             Self::OpenCode => OPENCODE_AGENT,
+            Self::None => "",
             Self::Unknown => "unknown",
         }
     }
@@ -204,8 +244,8 @@ mod tests {
         assert_eq!(AgentType::from_label("claude"), Some(AgentType::Claude));
         assert_eq!(AgentType::from_label("codex"), Some(AgentType::Codex));
         assert_eq!(AgentType::from_label("opencode"), Some(AgentType::OpenCode));
+        assert_eq!(AgentType::from_label(""), Some(AgentType::None));
         assert_eq!(AgentType::from_label("unknown"), None);
-        assert_eq!(AgentType::from_label(""), None);
     }
 
     #[test]
@@ -213,6 +253,7 @@ mod tests {
         assert_eq!(AgentType::Claude.label(), "claude");
         assert_eq!(AgentType::Codex.label(), "codex");
         assert_eq!(AgentType::OpenCode.label(), "opencode");
+        assert_eq!(AgentType::None.label(), "");
         assert_eq!(AgentType::Unknown.label(), "unknown");
     }
 

@@ -24,6 +24,7 @@ struct PaneTaskUpdate {
     dismissed_total: Option<usize>,
     inactive_since: Option<u64>,
     log_mtime: Option<std::time::SystemTime>,
+    last_activity: Option<activity::ActivityEntry>,
 }
 
 pub(crate) fn classify_task_progress(
@@ -121,9 +122,12 @@ impl AppState {
         for mut session in sessions {
             let mut windows = Vec::new();
             for mut window in session.windows {
-                window
-                    .panes
-                    .retain(|pane| live_agent_panes.contains(&pane.pane_id));
+                // Keep every agentless pane (shells/editors shown via
+                // @sidebar_show_all_panes) plus any agent pane whose
+                // process is still alive.
+                window.panes.retain(|pane| {
+                    pane.agent == tmux::AgentType::None || live_agent_panes.contains(&pane.pane_id)
+                });
                 if !window.panes.is_empty() {
                     windows.push(window);
                 }
@@ -201,7 +205,12 @@ impl AppState {
             for session in sessions {
                 for window in &session.windows {
                     for pane in &window.panes {
-                        if !scanned.live_agent_panes.contains(&pane.pane_id) {
+                        // Agentless panes (shells/editors shown via
+                        // @sidebar_show_all_panes) have no agent process to
+                        // track, so they must never be swept as "dead".
+                        if pane.agent != crate::tmux::AgentType::None
+                            && !scanned.live_agent_panes.contains(&pane.pane_id)
+                        {
                             dead_panes.push(pane.pane_id.clone());
                         }
                         updates.push((
@@ -260,6 +269,7 @@ impl AppState {
                         dismissed_total: prior_state.task_dismissed_total,
                         inactive_since: None,
                         log_mtime: current_mtime,
+                        last_activity: prior_state.last_activity.clone(),
                     });
                     continue;
                 }
@@ -267,6 +277,10 @@ impl AppState {
                 // so that TaskCreate entries aren't lost when subagents flood the log
                 let entries = activity::read_activity_log(&pane.pane_id, 0);
                 let progress = activity::parse_task_progress(&entries);
+                let last_activity = entries
+                    .iter()
+                    .find(|e| e.tool != activity::TASK_RESET_MARKER)
+                    .cloned();
                 // Debounce inactive→dismiss transition to avoid flicker.
                 //
                 // The agent status can briefly drop to idle during normal operation
@@ -313,6 +327,7 @@ impl AppState {
                     dismissed_total: next_dismissed_total,
                     inactive_since: next_inactive_since,
                     log_mtime: current_mtime,
+                    last_activity,
                 });
             }
         }
@@ -322,6 +337,7 @@ impl AppState {
             pane_state.task_dismissed_total = update.dismissed_total;
             pane_state.task_progress = update.progress;
             pane_state.task_progress_log_mtime = update.log_mtime;
+            pane_state.last_activity = update.last_activity;
         }
     }
 
@@ -478,6 +494,8 @@ mod tests {
             session_name: String::new(),
             sidebar_spawned: false,
             bg_shell_cmd: None,
+            title: String::new(),
+            claude: None,
         }
     }
 
@@ -818,6 +836,36 @@ mod tests {
         let filtered = AppState::filter_sessions_to_live_agent_panes(sessions, &live);
 
         assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn filter_sessions_to_live_agent_panes_keeps_agentless_panes() {
+        let mut pane = test_pane("%1");
+        pane.agent = AgentType::None;
+        let sessions = test_session(vec![pane]);
+        let live = HashSet::new();
+
+        let filtered = AppState::filter_sessions_to_live_agent_panes(sessions, &live);
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].windows[0].panes.len(), 1);
+        assert_eq!(filtered[0].windows[0].panes[0].agent, AgentType::None);
+    }
+
+    #[test]
+    fn filter_sessions_to_live_agent_panes_keeps_agentless_alongside_dead_agent() {
+        let mut shell = test_pane("%1");
+        shell.agent = AgentType::None;
+        let mut dead_agent = test_pane("%2");
+        dead_agent.agent = AgentType::Claude;
+        let sessions = test_session(vec![shell, dead_agent]);
+        let live = HashSet::new();
+
+        let filtered = AppState::filter_sessions_to_live_agent_panes(sessions, &live);
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].windows[0].panes.len(), 1);
+        assert_eq!(filtered[0].windows[0].panes[0].agent, AgentType::None);
     }
 
     // ─── refresh_session_names ──────────────────────────────────────
